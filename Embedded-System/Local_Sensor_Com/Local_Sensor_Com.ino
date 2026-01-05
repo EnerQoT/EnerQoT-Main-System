@@ -30,7 +30,6 @@ const unsigned long debounceDelay = 50;
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial) delay(10);
 
   Wire.begin();  
 
