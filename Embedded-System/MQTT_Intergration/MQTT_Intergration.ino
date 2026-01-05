@@ -15,11 +15,13 @@ const char* password = "12345677777";
 // MQTT Broker details 
 const char* mqtt_server = "13.53.123.10";  
 const int mqtt_port = 1883;
-const char* mqtt_user = "";  // If authentication is enabled, set username
-const char* mqtt_pass = "";  // If authentication is enabled, set password
+const char* mqtt_user = "";
+// If authentication is enabled, set username
+const char* mqtt_pass = "";
+// If authentication is enabled, set password
 const char* mqtt_topic = "sensor/data";
 
-// PZEM Serial pins - Keeping as in your code, since you say data works
+// PZEM Serial pins 
 #define PZEM_RX_PIN 21
 #define PZEM_TX_PIN 20
 
@@ -30,8 +32,6 @@ const char* mqtt_topic = "sensor/data";
 
 // Button pin
 const int buttonPin = 1;
-
-
 
 // Create objects
 Adafruit_INA3221 ina3221;
@@ -48,10 +48,14 @@ const unsigned long debounceDelay = 50;
 unsigned long lastPublishTime = 0;
 const unsigned long publishInterval = 5000;  // 5 seconds
 
-void setup() {
-  Serial.begin(115200);  // USB serial for debugging
-  
+// Custom Labels for INA3221
+const char* channelNamesDisplay[] = {"ESP", "Battery", "Main"}; // For OLED/Serial
+const char* channelNamesJSON[]    = {"esp", "battery", "main"}; // For MQTT keys
 
+void setup() {
+  Serial.begin(115200);
+  // USB serial for debugging
+  
   Wire.begin();  // I2C on default pins (GPIO8 SDA, GPIO9 SCL)
 
   // Initialize INA3221
@@ -155,18 +159,24 @@ void loop() {
   if (currentView == 0) {
     // View 1: PZEM004T
     display.println("PZEM004T Data");
-    display.print("V: "); display.print(isnan(pzem_voltage) ? "N/A" : String(pzem_voltage, 1)); display.println(" V");
+    display.print("V: ");
+    display.print(isnan(pzem_voltage) ? "N/A" : String(pzem_voltage, 1)); display.println(" V");
     display.print("I: "); display.print(isnan(pzem_current) ? "N/A" : String(pzem_current, 2)); display.println(" A");
-    display.print("P: "); display.print(isnan(pzem_power) ? "N/A" : String(pzem_power, 0)); display.println(" W");
+    display.print("P: ");
+    display.print(isnan(pzem_power) ? "N/A" : String(pzem_power, 0)); display.println(" W");
     display.print("E: "); display.print(isnan(pzem_energy) ? "N/A" : String(pzem_energy, 3)); display.println(" kWh");
-    display.print("F: "); display.print(isnan(pzem_frequency) ? "N/A" : String(pzem_frequency, 1)); display.println(" Hz");
+    display.print("F: ");
+    display.print(isnan(pzem_frequency) ? "N/A" : String(pzem_frequency, 1)); display.println(" Hz");
     display.print("PF: "); display.print(isnan(pzem_pf) ? "N/A" : String(pzem_pf, 2));
   } else if (currentView == 1) {
     // View 2: INA3221
     display.println("INA3221 Data");
     for (uint8_t i = 0; i < 3; i++) {
-      display.print("Ch"); display.print(i + 1); display.print(": V=");
-      display.print(ina_voltage[i], 1); display.print("V I=");
+      // Print Custom Name (ESP, Battery, Main)
+      display.print(channelNamesDisplay[i]); 
+      display.print(":");
+      // Simple formatting to fit screen
+      display.print(ina_voltage[i], 1); display.print("V ");
       display.print(ina_current[i], 0); display.println("mA");
     }
   } else if (currentView == 2) {
@@ -181,7 +191,6 @@ void loop() {
   // Publish to MQTT every 5 seconds
   if (millis() - lastPublishTime >= publishInterval) {
     lastPublishTime = millis();
-
     // Create JSON document
     StaticJsonDocument<512> doc;
     JsonObject pzemObj = doc.createNestedObject("pzem");
@@ -194,7 +203,8 @@ void loop() {
 
     JsonObject inaObj = doc.createNestedObject("ina3221");
     for (uint8_t i = 0; i < 3; i++) {
-      JsonObject ch = inaObj.createNestedObject("ch" + String(i + 1));
+      // Use custom keys: esp, battery, main
+      JsonObject ch = inaObj.createNestedObject(channelNamesJSON[i]);
       ch["voltage"] = isnan(ina_voltage[i]) ? 0 : ina_voltage[i];
       ch["current_ma"] = isnan(ina_current[i]) ? 0 : ina_current[i];
     }
@@ -206,13 +216,12 @@ void loop() {
     // Serialize JSON
     char jsonBuffer[512];
     size_t jsonLength = serializeJson(doc, jsonBuffer, sizeof(jsonBuffer));
-
     // Debug: Print JSON and length
     Serial.print("JSON Length: ");
     Serial.println(jsonLength);
     Serial.print("Publishing to MQTT: ");
     Serial.println(jsonBuffer);
-
+    
     // Publish
     if (client.publish(mqtt_topic, jsonBuffer)) {
       Serial.println("Data published to MQTT");
@@ -224,15 +233,17 @@ void loop() {
   // Print to Serial for debugging
   Serial.println("--- PZEM ---");
   Serial.print("Voltage: "); Serial.print(pzem_voltage); Serial.println("V");
-  Serial.print("Current: "); Serial.print(pzem_current); Serial.println("A");
+  Serial.print("Current: ");
+  Serial.print(pzem_current); Serial.println("A");
   Serial.print("Power: "); Serial.print(pzem_power); Serial.println("W");
   Serial.print("Energy: "); Serial.print(pzem_energy, 3); Serial.println("kWh");
   Serial.print("Frequency: "); Serial.print(pzem_frequency); Serial.println("Hz");
   Serial.print("PF: "); Serial.println(pzem_pf);
-
+  
   Serial.println("--- INA3221 ---");
   for (uint8_t i = 0; i < 3; i++) {
-    Serial.print("Ch"); Serial.print(i + 1); Serial.print(": V=");
+    Serial.print(channelNamesDisplay[i]); // Print ESP, Battery, Main
+    Serial.print(": V=");
     Serial.print(ina_voltage[i], 2); Serial.print(" I=");
     Serial.print(ina_current[i], 2); Serial.println("mA");
   }
