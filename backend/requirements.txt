@@ -33,3 +33,10 @@ black==23.12.1
 
 # Production Server
 gunicorn==21.2.0
+
+# Machine Learning & Data Science
+tensorflow
+pandas
+numpy
+joblib
+scikit-learn

@@ -22,3 +22,13 @@ def sensor_data():
 
     result = service.process(data["device_id"], payload)
     return jsonify(result)
+
+@anomaly_bp.route("/feedback", methods=["POST"])
+def feedback():
+    data = request.json
+    
+    if "device_id" not in data or "correct_label" not in data:
+        return jsonify({"error": "Missing device_id or correct_label"}), 400
+        
+    result = service.handle_feedback(data["device_id"], int(data["correct_label"]))
+    return jsonify(result)

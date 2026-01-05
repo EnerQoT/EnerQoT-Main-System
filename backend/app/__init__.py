@@ -26,8 +26,8 @@ def create_app(config_name='development'):
     CORS(app)
     
     # Register blueprints
-    # from app.api import api_bp
-    # app.register_blueprint(api_bp, url_prefix='/api')
+    from app.api.routes.anomaly_routes import anomaly_bp
+    app.register_blueprint(anomaly_bp)
     
     # Initialize extensions
     # db.init_app(app)
