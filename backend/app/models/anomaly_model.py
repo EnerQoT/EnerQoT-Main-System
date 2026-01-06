@@ -1,5 +1,5 @@
 import joblib
-from app.config.settings import IFOREST_PATH, SCALER_PATH
+from config.settings import IFOREST_PATH, SCALER_PATH
 
 class AnomalyModel:
     def __init__(self):
