@@ -33,6 +33,9 @@ def create_app(config_name='development'):
     
     from app.api.routes.sensor_health_routes import sensor_health_bp
     app.register_blueprint(sensor_health_bp)
+
+    from app.api.routes.dashboard_routes import dashboard_bp
+    app.register_blueprint(dashboard_bp)    
     
     # Initialize extensions
     # db.init_app(app)

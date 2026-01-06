@@ -82,3 +82,4 @@ logs/
 tmp/
 temp/
 *.tmp
+backend/config/firebase_credentials.json
