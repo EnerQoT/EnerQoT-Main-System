@@ -31,6 +31,9 @@ def create_app(config_name='development'):
     app.register_blueprint(anomaly_bp)
     app.register_blueprint(admin_bp)
     
+    from app.api.routes.sensor_health_routes import sensor_health_bp
+    app.register_blueprint(sensor_health_bp)
+    
     # Initialize extensions
     # db.init_app(app)
     # migrate.init_app(app, db)
