@@ -33,7 +33,7 @@ def check_health():
         except KeyError:
              status += " (Anomaly Detected - Incomplete Data)"
         
-    elif score < 55:
+    elif score < 50:
         status = "Warning: System Unstable"
         color = "orange"
 

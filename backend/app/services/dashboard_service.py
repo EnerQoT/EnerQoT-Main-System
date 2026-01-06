@@ -54,7 +54,7 @@ class DashboardService:
                      else: status += " (Anomaly Detected)"
                 except:
                      pass
-             elif health_score < 55:
+             elif health_score < 50:
                 status = "Warning: System Unstable"
                 color = "orange"
              
