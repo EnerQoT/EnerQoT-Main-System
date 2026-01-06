@@ -27,7 +27,9 @@ def create_app(config_name='development'):
     
     # Register blueprints
     from app.api.routes.anomaly_routes import anomaly_bp
+    from app.api.routes.admin_routes import admin_bp
     app.register_blueprint(anomaly_bp)
+    app.register_blueprint(admin_bp)
     
     # Initialize extensions
     # db.init_app(app)

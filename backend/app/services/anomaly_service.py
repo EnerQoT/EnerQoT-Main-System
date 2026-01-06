@@ -191,6 +191,93 @@ class AnomalyService:
                 
                 return response
         
+        return None
+
+    def get_system_stats(self):
+        """Get aggregated system statistics for admin dashboard"""
+        if not self.use_db:
+            return {
+                "total_devices": 1,
+                "active_devices": 1,
+                "total_anomalies_24h": 0,
+                "system_health": 100
+            }
+
+        # 1. Device Counts
+        from app.database import get_collection
+        devices_col = get_collection('devices')
+        total_devices = devices_col.count_documents({})
+        active_devices = devices_col.count_documents({"status": "active"})
+        
+        # 2. Anomalies in last 24h
+        anomalies_col = self.anomalies
+        yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+        recent_anomalies = anomalies_col.count_documents({
+            "timestamp": {"$gte": yesterday}
+        })
+        
+        # 3. Calculate System Health (Simple heuristic)
+        # 100 - (anomalies * 5) - (inactive_devices * 10), min 0
+        inactive = total_devices - active_devices
+        health_score = max(0, 100 - (recent_anomalies * 2) - (inactive * 5))
+        
+        return {
+            "total_devices": total_devices,
+            "active_devices": active_devices,
+            "total_anomalies_24h": recent_anomalies,
+            "system_health": health_score
+        }
+
+    def get_all_devices(self):
+        """Get list of all devices with detailed status"""
+        if not self.use_db:
+            return []
+            
+        from app.database import get_collection
+        devices_col = get_collection('devices')
+        devices = list(devices_col.find({}, {"_id": 0}))
+        
+        # Enrich with last active time
+        readings_col = self.sensor_readings
+        anomalies_col = self.anomalies
+        
+        enriched_devices = []
+        for d in devices:
+            device_id = d.get("device_id")
+            
+            # Get last seen
+            last_reading = readings_col.find_one(
+                {"device_id": device_id},
+                sort=[("timestamp", -1)]
+            )
+            
+            # Get active alerts
+            active_alert_count = anomalies_col.count_documents({
+                "device_id": device_id,
+                "timestamp": {"$gte": datetime.now(timezone.utc) - timedelta(hours=24)},
+                "severity": {"$ne": "NORMAL"}
+            })
+            
+            d["last_active"] = last_reading["timestamp"].isoformat() if last_reading else None
+            d["active_alerts"] = active_alert_count
+            
+            # Determine status based on last seen (e.g., offline if > 5 mins)
+            is_online = False
+            if last_reading:
+                last_seen = last_reading["timestamp"]
+                # Ensure timezone awareness
+                if last_seen.tzinfo is None:
+                    last_seen = last_seen.replace(tzinfo=timezone.utc)
+                
+                if (datetime.now(timezone.utc) - last_seen).total_seconds() < 300: # 5 mins
+                    is_online = True
+            
+            d["status"] = "online" if is_online else "offline"
+            
+            enriched_devices.append(d)
+            
+        return enriched_devices
+        
         # Fallback to in-memory cache
         target_id = device_id
         if not target_id:
