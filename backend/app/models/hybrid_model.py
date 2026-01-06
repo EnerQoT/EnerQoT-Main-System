@@ -106,8 +106,18 @@ class HybridAnomalyModel:
         batch_size = min(32, current_mem_size)
         
         if batch_size > 0:
+            # DEBUG: Check prediction BEFORE training
+            q_values_before = self.rl_agent.model.predict(state, verbose=0)
+            
             self.rl_agent.replay(batch_size)
-            print(f"[Adaptive Learning] RL Model updated with feedback: Label={correct_label}")
+            
+            # DEBUG: Check prediction AFTER training
+            q_values_after = self.rl_agent.model.predict(state, verbose=0)
+            
+            print(f"[Adaptive Learning] Feedback: Label={correct_label}")
+            print(f"   -> Q-Values Before: {q_values_before[0]}")
+            print(f"   -> Q-Values After:  {q_values_after[0]}")
+            print(f"   -> Model updated successfully.")
             
         # Optional: Save the updated model occasionally
         # self.rl_agent.save(os.path.join(MODEL_DIR, "updated_rl_model.keras"))
