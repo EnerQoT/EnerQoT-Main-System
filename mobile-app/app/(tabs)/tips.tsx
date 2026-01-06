@@ -36,7 +36,7 @@ export default function Tips() {
                             <Text className="text-white/60 text-2xl font-bold mb-2">/100</Text>
                         </View>
                         <View className="bg-white/20 rounded-full h-3 mt-4 overflow-hidden">
-                            <View className="bg-white h-full rounded-full" style={{ width: '78%' }} />
+                            <View className="bg-slate-400 h-full rounded-full" style={{ width: '78%' }} />
                         </View>
                         <Text className="text-white/80 font-medium text-sm mt-3">
                             Good! You're doing better than 65% of users

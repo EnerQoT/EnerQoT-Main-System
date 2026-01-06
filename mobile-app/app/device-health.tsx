@@ -19,7 +19,7 @@ export default function DeviceHealth() {
     const systemInfo = [
         { label: 'OS Version', value: 'Android 13' },
         { label: 'App Version', value: '1.0.0' },
-        { label: 'Build Number', value: '2024.01.001' },
+        { label: 'Build Number', value: '2026.01.001' },
         { label: 'Last Update', value: '2 days ago' },
     ];
 
@@ -32,13 +32,6 @@ export default function DeviceHealth() {
                 resizeMode="cover"
             >
                 <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
-                    {/* Header */}
-                    <View className="flex-row items-center mb-8 mt-2">
-                        <TouchableOpacity onPress={() => router.back()} className="bg-white/10 p-2 rounded-full mr-4">
-                            <FontAwesome name="arrow-left" size={20} color="white" />
-                        </TouchableOpacity>
-                        <Text className="text-2xl font-extrabold text-white">Device Health</Text>
-                    </View>
 
                     {/* Overall Status */}
                     <View className="bg-green-600 rounded-3xl p-6 mb-6 flex-row items-center">
