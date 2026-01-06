@@ -19,7 +19,7 @@ EnerQoT-Main-System/
 │   ├── requirements.txt  # Python dependencies
 │   └── README.md         # Backend documentation
 │
-├── frontend/              # React frontend application
+├── mobile-app/            # React Native mobile application
 │   ├── public/           # Static files
 │   ├── src/              # Source files
 │   │   ├── components/   # Reusable components
@@ -62,7 +62,7 @@ Backend will run on `http://localhost:5000`
 ### Frontend Setup
 
 ```bash
-cd frontend
+cd mobile-app
 npm install
 cp .env.example .env
 # Edit .env with your configuration
@@ -85,11 +85,11 @@ docker-compose up -d
 - **Linting**: `cd backend && flake8 .`
 - **Format code**: `cd backend && black .`
 
-### Frontend
+### Mobile App
 
-- **Run tests**: `cd frontend && npm test`
-- **Linting**: `cd frontend && npm run lint`
-- **Format code**: `cd frontend && npm run format`
+- **Run tests**: `cd mobile-app && npm test`
+- **Linting**: `cd mobile-app && npm run lint`
+- **Format code**: `cd mobile-app && npm run format`
 
 ## Architecture
 
@@ -101,9 +101,9 @@ The backend follows a modular architecture with:
 - **Model Layer**: Database models and ORM
 - **Middleware**: Authentication, logging, error handling
 
-### Frontend (React)
+### Mobile App (React Native + Expo)
 
-The frontend follows component-based architecture with:
+The mobile app follows component-based architecture with:
 - **Pages**: Top-level route components
 - **Components**: Reusable UI components
 - **Services**: API communication layer
