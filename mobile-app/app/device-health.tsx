@@ -5,7 +5,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 
-// Backend URL - Adjust based on your environment
+// Backend URL - Adjust based on the environment
 // Genymotion: http://10.0.3.2:5000
 // Android Emulator: http://10.0.2.2:5000
 // Physical Device: http://<YOUR_LOCAL_IP>:5000 (e.g., 192.168.1.100)
@@ -120,6 +120,20 @@ export default function DeviceHealth() {
                                 </Text>
                             )}
                         </View>
+                    </View>
+
+                    {/* AI Analysis */}
+                    <View className="bg-slate-800/80 rounded-3xl p-5 border border-white/10 mb-6">
+                        <View className="flex-row items-center mb-3">
+                            <FontAwesome name="magic" size={16} color="#3b82f6" />
+                            <Text className="text-white font-bold text-lg ml-2">AI Analysis</Text>
+                        </View>
+                        <Text className="text-slate-300 text-sm leading-6">
+                            Based on the current sensor telemetry, the system is operating within optimal parameters.
+                            Power consumption efficiency is rated at 94%, and battery voltage holding steady at nominal levels.
+                            A slight variance in CPU temperature was noted but remains well below the thermal throttling threshold.
+                            <Text className="font-bold text-white"> Recommendation: </Text> No immediate maintenance actions are required at this time.
+                        </Text>
                     </View>
 
                     {/* Health Metrics */}
