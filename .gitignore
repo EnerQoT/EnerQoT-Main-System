@@ -56,9 +56,17 @@ yarn-debug.log*
 yarn-error.log*
 
 # React Build
-frontend/build/
-frontend/.pnp
-frontend/.pnp.js
+mobile-app/build/
+mobile-app/.pnp
+mobile-app/.pnp.js
+
+# Expo
+.expo/
+*.jks
+*.keystore
+*.p12
+*.key
+mobile-app/web-build/
 
 # Testing
 .coverage
