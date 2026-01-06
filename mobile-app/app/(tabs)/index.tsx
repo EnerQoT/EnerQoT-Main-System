@@ -1,16 +1,33 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ImageBackground } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ImageBackground, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getLatestStatus } from '../../services/api';
+import { getLatestStatus, sendFeedback } from '../../services/api';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
+import { usePower } from '../contexts/PowerContext';
 
 export default function Home() {
     const [data, setData] = useState<any>(null);
     const [refreshing, setRefreshing] = useState(false);
+    const [showMenu, setShowMenu] = useState(false);
     const router = useRouter();
+    const { isPowerOn } = usePower();
+
+    const handleFeedback = async (correctLabel: number) => {
+        if (!data) return;
+        try {
+            await sendFeedback(data.device_id || 'testdayve', correctLabel);
+            setShowMenu(false);
+            alert("Feedback Sent! Model is learning...");
+        } catch (error) {
+            console.error("Error sending feedback:", error);
+            alert("Failed to send feedback");
+        }
+    };
 
     const fetchData = async () => {
+        if (!isPowerOn) return; // Don't fetch if power is off
+
         try {
             const result = await getLatestStatus();
             if (result && result.data) {
@@ -22,10 +39,12 @@ export default function Home() {
     };
 
     useEffect(() => {
+        if (!isPowerOn) return; // Don't poll if power is off
+
         const interval = setInterval(fetchData, 2000);
         fetchData();
         return () => clearInterval(interval);
-    }, []);
+    }, [isPowerOn]);
 
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
@@ -62,56 +81,92 @@ export default function Home() {
                     showsVerticalScrollIndicator={false}
                 >
                     {/* Status Card */}
-                    <View className={`w-full rounded-3xl p-6 shadow-xl mb-6 ${statusBg}`}>
-                        <View className="flex-row justify-between items-start">
-                            <View>
-                                <Text className="text-white/80 font-bold text-xs uppercase tracking-wider mb-1">
-                                    Current Status
-                                </Text>
-                                <Text className="text-white text-4xl font-black tracking-tighter">
-                                    {severity}
-                                </Text>
+                    {!isPowerOn ? (
+                        <View className="w-full rounded-3xl p-6 shadow-xl mb-6 bg-slate-700">
+                            <View className="flex-row justify-between items-start">
+                                <View>
+                                    <Text className="text-white/80 font-bold text-xs uppercase tracking-wider mb-1">
+                                        Current Status
+                                    </Text>
+                                    <Text className="text-white text-4xl font-black tracking-tighter">
+                                        OFFLINE
+                                    </Text>
+                                </View>
+                                <View className="bg-white/20 p-3 rounded-2xl">
+                                    <FontAwesome name="power-off" size={24} color="white" />
+                                </View>
                             </View>
-                            <View className="bg-white/20 p-3 rounded-2xl">
-                                <FontAwesome name={isCritical ? "warning" : "check"} size={24} color="white" />
-                            </View>
-                        </View>
 
-                        <View className="mt-6 bg-black/10 rounded-xl p-3 flex-row items-center">
-                            <FontAwesome name="info-circle" size={16} color="white" className="opacity-80" />
-                            <Text className="text-white font-medium ml-2 opacity-90">
-                                {statusText}
-                            </Text>
+                            <View className="mt-6 bg-black/10 rounded-xl p-3 flex-row items-center">
+                                <FontAwesome name="info-circle" size={16} color="white" className="opacity-80" />
+                                <Text className="text-white font-medium ml-2 opacity-90">
+                                    Turn on device to view current status
+                                </Text>
+                            </View>
                         </View>
-                    </View>
+                    ) : (
+                        <View className={`w-full rounded-3xl p-6 shadow-xl mb-6 ${statusBg}`}>
+                            <View className="flex-row justify-between items-start">
+                                <View>
+                                    <Text className="text-white/80 font-bold text-xs uppercase tracking-wider mb-1">
+                                        Current Status
+                                    </Text>
+                                    <Text className="text-white text-4xl font-black tracking-tighter">
+                                        {severity}
+                                    </Text>
+                                </View>
+                                <View className="flex-row items-center">
+                                    <View className="bg-white/20 p-3 rounded-2xl mr-2">
+                                        <FontAwesome name={isCritical ? "warning" : "check"} size={24} color="white" />
+                                    </View>
+                                    <TouchableOpacity
+                                        onPress={() => setShowMenu(true)}
+                                        className="bg-white/20 p-3 rounded-2xl"
+                                    >
+                                        <FontAwesome name="ellipsis-v" size={24} color="white" />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+
+                            <View className="mt-6 bg-black/10 rounded-xl p-3 flex-row items-center">
+                                <FontAwesome name="info-circle" size={16} color="white" className="opacity-80" />
+                                <Text className="text-white font-medium ml-2 opacity-90">
+                                    {statusText}
+                                </Text>
+                            </View>
+                        </View>
+                    )}
+
+                    {/* Power Control Button */}
+                    <PowerToggleButton />
 
                     {/* Quick Metrics */}
                     <Text className="text-white font-bold text-lg mb-4 ml-1">Quick Overview</Text>
                     <View className="flex-row flex-wrap justify-between mb-6">
                         <MetricCard
                             label="Voltage"
-                            value={data?.data?.voltage}
+                            value={isPowerOn ? data?.data?.voltage : undefined}
                             unit="V"
                             icon="flash"
                             color="#facc15"
                         />
                         <MetricCard
                             label="Current"
-                            value={data?.data?.current}
+                            value={isPowerOn ? data?.data?.current : undefined}
                             unit="A"
                             icon="bolt"
                             color="#22d3ee"
                         />
                         <MetricCard
                             label="Power"
-                            value={power}
+                            value={isPowerOn ? power : undefined}
                             unit="W"
                             icon="fire"
                             color="#f97316"
                         />
                         <MetricCard
                             label="Temp"
-                            value={data?.data?.temperature}
+                            value={isPowerOn ? data?.data?.temperature : undefined}
                             unit="°C"
                             icon="thermometer"
                             color="#fb7185"
@@ -158,6 +213,57 @@ export default function Home() {
                     </View>
                 </ScrollView>
             </ImageBackground>
+
+            {/* Feedback Menu Modal */}
+            <Modal
+                visible={showMenu}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowMenu(false)}
+            >
+                <TouchableOpacity
+                    className="flex-1 bg-black/50 justify-center items-center"
+                    activeOpacity={1}
+                    onPress={() => setShowMenu(false)}
+                >
+                    <View className="bg-slate-800 rounded-3xl p-6 mx-8 w-80 border border-white/10">
+                        <Text className="text-white font-bold text-lg mb-4">AI Feedback</Text>
+
+                        <TouchableOpacity
+                            onPress={() => handleFeedback(isCritical ? 1 : 0)}
+                            className="bg-green-600 rounded-2xl p-4 mb-3 flex-row items-center"
+                        >
+                            <View className="bg-white/20 p-2 rounded-full mr-3">
+                                <FontAwesome name="check" size={18} color="white" />
+                            </View>
+                            <View className="flex-1">
+                                <Text className="text-white font-bold text-base">Confirm Status</Text>
+                                <Text className="text-white/70 text-xs mt-1">Detection is accurate</Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={() => handleFeedback(isCritical ? 0 : 1)}
+                            className="bg-red-600 rounded-2xl p-4 mb-3 flex-row items-center"
+                        >
+                            <View className="bg-white/20 p-2 rounded-full mr-3">
+                                <FontAwesome name="times" size={18} color="white" />
+                            </View>
+                            <View className="flex-1">
+                                <Text className="text-white font-bold text-base">Report Error</Text>
+                                <Text className="text-white/70 text-xs mt-1">False alarm detected</Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={() => setShowMenu(false)}
+                            className="bg-slate-700 rounded-2xl p-3 items-center"
+                        >
+                            <Text className="text-white font-semibold">Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -187,3 +293,37 @@ const NotificationItem = ({ severity, message, time }: any) => {
         </View>
     );
 };
+
+const PowerToggleButton = () => {
+    const { isPowerOn, togglePower } = usePower();
+
+    return (
+        <TouchableOpacity
+            onPress={togglePower}
+            className={`w-full rounded-3xl p-6 shadow-xl mb-6 ${isPowerOn ? 'bg-green-600' : 'bg-slate-700'}`}
+            activeOpacity={0.7}
+        >
+            <View className="flex-row justify-between items-center">
+                <View className="flex-1">
+                    <Text className="text-white/80 font-bold text-xs uppercase tracking-wider mb-1">
+                        Device Power
+                    </Text>
+                    <Text className="text-white text-3xl font-black tracking-tighter">
+                        {isPowerOn ? 'ON' : 'OFF'}
+                    </Text>
+                    <Text className="text-white/70 text-sm mt-2">
+                        {isPowerOn ? 'Real-time monitoring active' : 'Device powered off'}
+                    </Text>
+                </View>
+                <View className={`p-5 rounded-full ${isPowerOn ? 'bg-white/20' : 'bg-white/10'}`}>
+                    <FontAwesome
+                        name="power-off"
+                        size={32}
+                        color="white"
+                    />
+                </View>
+            </View>
+        </TouchableOpacity>
+    );
+};
+
