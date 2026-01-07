@@ -16,16 +16,6 @@ export default function Profile() {
                 resizeMode="cover"
             >
                 <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
-                    {/* Header */}
-                    <View className="flex-row justify-between items-center mb-8 mt-2">
-                        <TouchableOpacity onPress={() => router.back()} className="bg-white/10 p-2 rounded-full">
-                            <FontAwesome name="arrow-left" size={20} color="white" />
-                        </TouchableOpacity>
-                        <Text className="text-2xl font-extrabold text-white">Profile</Text>
-                        <TouchableOpacity className="bg-blue-600 px-4 py-2 rounded-xl">
-                            <Text className="text-white font-bold text-sm">Save</Text>
-                        </TouchableOpacity>
-                    </View>
 
                     {/* Profile Picture */}
                     <View className="items-center mb-8">
@@ -50,7 +40,7 @@ export default function Profile() {
                         <Text className="text-white font-bold text-lg mb-4">Account Information</Text>
                         <InfoRow label="User ID" value="EQ-2024-001" />
                         <InfoRow label="Account Type" value="Administrator" />
-                        <InfoRow label="Member Since" value="January 2024" />
+                        <InfoRow label="Member Since" value="January 2026" />
                         <InfoRow label="Last Login" value="Today, 5:30 PM" />
                     </View>
                 </ScrollView>

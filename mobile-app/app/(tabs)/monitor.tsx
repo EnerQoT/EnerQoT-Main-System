@@ -5,6 +5,7 @@ import { LineChart } from 'react-native-chart-kit';
 import { getLatestStatus, sendFeedback } from '../../services/api';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import TimeRangeSelector from '../components/TimeRangeSelector';
+import { usePower } from '../contexts/PowerContext';
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -13,6 +14,7 @@ export default function Monitor() {
     const [history, setHistory] = useState<number[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const [timeRange, setTimeRange] = useState('20s');
+    const { isPowerOn } = usePower();
 
     // Determine max data points and polling interval based on time range
     const getTimeRangeConfig = (range: string) => {
@@ -35,6 +37,8 @@ export default function Monitor() {
 
     // Poll for data
     const fetchData = async () => {
+        if (!isPowerOn) return; // Don't fetch if power is off
+
         try {
             // const result = await getLatestStatus('testdayve'); // Pass device ID
             return; // Stop test requests until real device ID is available
@@ -55,10 +59,12 @@ export default function Monitor() {
     };
 
     useEffect(() => {
+        if (!isPowerOn) return; // Don't poll if power is off
+
         const interval = setInterval(fetchData, config.interval);
         fetchData(); // Initial fetch
         return () => clearInterval(interval);
-    }, [timeRange]);
+    }, [timeRange, isPowerOn]);
 
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
@@ -99,42 +105,12 @@ export default function Monitor() {
                     contentContainerStyle={{ padding: 20 }}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Main Status Card */}
-                    <View className={`w-full rounded-3xl p-6 shadow-xl mb-8 ${statusBg}`}>
-                        <View className="flex-row justify-between items-start">
-                            <View>
-                                <Text className="text-white/80 font-bold text-xs uppercase tracking-wider mb-1">
-                                    Current Status
-                                </Text>
-                                <Text className="text-white text-4xl font-black tracking-tighter">
-                                    {severity}
-                                </Text>
-                            </View>
-                            <View className="bg-white/20 p-3 rounded-2xl">
-                                <FontAwesome name={isCritical ? "warning" : "check"} size={24} color="white" />
-                            </View>
-                        </View>
-
-                        <View className="mt-6 bg-black/10 rounded-xl p-3 flex-row items-center">
-                            <FontAwesome name="info-circle" size={16} color="white" className="opacity-80" />
-                            <Text className="text-white font-medium ml-2 opacity-90">
-                                {statusText}
-                            </Text>
-                        </View>
-                    </View>
-
-                    {/* Time Range Selector */}
-                    <View className="mb-6">
-                        <Text className="text-white font-bold text-lg mb-3 ml-1">Time Range</Text>
-                        <TimeRangeSelector selected={timeRange} onSelect={setTimeRange} />
-                    </View>
-
                     {/* Live Metrics Grid */}
                     <Text className="text-white font-bold text-lg mb-4 ml-1">Live Metrics</Text>
                     <View className="flex-row flex-wrap justify-between mb-2">
                         <SensorCard
                             label="Voltage"
-                            value={data?.data?.voltage}
+                            value={isPowerOn ? data?.data?.voltage : undefined}
                             unit="V"
                             icon="flash"
                             color="text-yellow-400"
@@ -142,7 +118,7 @@ export default function Monitor() {
                         />
                         <SensorCard
                             label="Current"
-                            value={data?.data?.current}
+                            value={isPowerOn ? data?.data?.current : undefined}
                             unit="A"
                             icon="bolt"
                             color="text-cyan-400"
@@ -150,7 +126,7 @@ export default function Monitor() {
                         />
                         <SensorCard
                             label="Frequency"
-                            value={data?.data?.frequency}
+                            value={isPowerOn ? data?.data?.frequency : undefined}
                             unit="Hz"
                             icon="dashboard"
                             color="text-purple-400"
@@ -158,12 +134,18 @@ export default function Monitor() {
                         />
                         <SensorCard
                             label="Temp"
-                            value={data?.data?.temperature}
+                            value={isPowerOn ? data?.data?.temperature : undefined}
                             unit="°C"
                             icon="thermometer"
                             color="text-rose-400"
                             bgColor="bg-rose-400/10"
                         />
+                    </View>
+
+                    {/* Time Range Selector */}
+                    <View className="mb-6">
+                        <Text className="text-white font-bold text-lg mb-3 ml-1">Time Range</Text>
+                        <TimeRangeSelector selected={timeRange} onSelect={setTimeRange} />
                     </View>
 
                     {/* Power Chart */}
@@ -223,37 +205,6 @@ export default function Monitor() {
                         )}
                     </View>
 
-                    {/* Interactive Feedback */}
-                    <View className="mb-20">
-                        <Text className="text-white font-bold text-lg mb-4 ml-1">AI Feedback Loop</Text>
-                        <View className="bg-white rounded-3xl p-1 shadow-sm border border-slate-100 flex-row">
-                            <TouchableOpacity
-                                onPress={() => handleFeedback(isCritical ? 1 : 0)}
-                                className="flex-1 bg-white p-4 rounded-3xl items-center flex-row justify-center space-x-2 border-r border-slate-100"
-                            >
-                                <View className="bg-green-100 p-2 rounded-full mr-2">
-                                    <FontAwesome name="check" size={16} color="#166534" />
-                                </View>
-                                <View>
-                                    <Text className="text-slate-800 font-bold text-sm">Confirm</Text>
-                                    <Text className="text-slate-400 text-[10px] font-bold uppercase">Accurate</Text>
-                                </View>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                onPress={() => handleFeedback(isCritical ? 0 : 1)}
-                                className="flex-1 bg-white p-4 rounded-3xl items-center flex-row justify-center space-x-2"
-                            >
-                                <View className="bg-red-100 p-2 rounded-full mr-2">
-                                    <FontAwesome name="times" size={16} color="#991b1b" />
-                                </View>
-                                <View>
-                                    <Text className="text-slate-800 font-bold text-sm">Report Error</Text>
-                                    <Text className="text-slate-400 text-[10px] font-bold uppercase">False Alarm</Text>
-                                </View>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
 
                 </ScrollView>
             </ImageBackground>

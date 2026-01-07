@@ -3,7 +3,7 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { View, Text } from 'react-native';
+import CustomSplashScreen from './components/SplashScreen';
 import "../global.css";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -27,11 +27,21 @@ export default function RootLayout() {
   }, [loaded]);
 
   if (!loaded) {
-    return null;
+    return <CustomSplashScreen />;
   }
 
   return (
-    <Stack>
+    <Stack
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#334155', // Bluish-ash color (slate-700)
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
     </Stack>
   );
