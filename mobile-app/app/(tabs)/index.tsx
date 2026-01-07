@@ -12,10 +12,11 @@ export default function Home() {
 
     const fetchData = async () => {
         try {
-            const result = await getLatestStatus();
-            if (result && result.data) {
-                setData(result);
-            }
+            // const result = await getLatestStatus();
+            // if (result && result.data) {
+            //    setData(result);
+            // }
+            return; // Stop test requests until real device ID is available
         } catch (e) {
             console.log("Error fetching data", e);
         }

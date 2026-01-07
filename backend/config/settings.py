@@ -8,3 +8,6 @@ IFOREST_PATH = MODEL_DIR / "device_agnostic_iforest.pkl"
 SCALER_PATH = MODEL_DIR / "device_agnostic_scaler.pkl"
 
 WINDOW_SIZE = 20
+
+SIMULATED_DATA_PATH = MODEL_DIR / "simulated_iot_data.csv"
+PARTIAL_FACTOR = 0.7

@@ -36,18 +36,19 @@ export default function Monitor() {
     // Poll for data
     const fetchData = async () => {
         try {
-            const result = await getLatestStatus('testdayve'); // Pass device ID
-            console.log('Fetched data:', result); // Debug log
-            if (result && result.data) {
-                setData(result);
-                // Calculate Power (W) = V * I * PF
-                const power = result.data.voltage * result.data.current * result.data.power_factor;
-                setHistory(prev => {
-                    const newHist = [...prev, power];
-                    if (newHist.length > config.maxPoints) newHist.shift();
-                    return newHist;
-                });
-            }
+            // const result = await getLatestStatus('testdayve'); // Pass device ID
+            return; // Stop test requests until real device ID is available
+            // console.log('Fetched data:', result); // Debug log
+            // if (result && result.data) {
+            //    setData(result);
+            //    // Calculate Power (W) = V * I * PF
+            //    const power = result.data.voltage * result.data.current * result.data.power_factor;
+            //    setHistory(prev => {
+            //        const newHist = [...prev, power];
+            //        if (newHist.length > config.maxPoints) newHist.shift();
+            //        return newHist;
+            //    });
+            // }
         } catch (e) {
             console.log("Error fetching data", e);
         }
