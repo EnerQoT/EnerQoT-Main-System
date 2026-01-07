@@ -39,15 +39,19 @@ class AnomalyService:
     def process(self, device_id, payload):
         # 1. Save sensor reading to MongoDB
         if self.use_db:
-            reading = SensorReading.create(
-                device_id,
-                payload.get('voltage', 0),
-                payload.get('current', 0),
-                payload.get('frequency', 0),
-                payload.get('temperature', 0),
-                payload.get('power_factor', 0)
-            )
-            self.sensor_readings.insert_one(reading)
+            try:
+                reading = SensorReading.create(
+                    device_id,
+                    payload.get('voltage', 0),
+                    payload.get('current', 0),
+                    payload.get('frequency', 0),
+                    payload.get('temperature', 0),
+                    payload.get('power_factor', 0)
+                )
+                self.sensor_readings.insert_one(reading)
+            except Exception as e:
+                print(f"⚠️  DB Error (Sensor Write): {e}")
+                # Don't crash, just continue
         
         # 2. Update in-memory buffer for real-time processing
         if device_id not in self.buffers:
@@ -67,30 +71,33 @@ class AnomalyService:
         self.last_features[device_id] = features
         score = self.model.score(features)
         severity = self._severity(score)
-        action_taken = self.agent.act(device_id, severity)
+        action_taken = self.agent.act(device_id, severity, features=features)
         
         # 5. Save anomaly to MongoDB if not normal
         if self.use_db and severity != "NORMAL":
-            anomaly = Anomaly.create(
-                device_id,
-                severity,
-                score,
-                action_taken,
-                features
-            )
-            self.anomalies.insert_one(anomaly)
-            
-            # 6. Create notification
-            title = f"{severity} Alert"
-            message = self._get_alert_message(severity, payload)
-            notification = Notification.create(
-                device_id,
-                severity,
-                title,
-                message,
-                action_taken
-            )
-            self.notifications.insert_one(notification)
+            try:
+                anomaly = Anomaly.create(
+                    device_id,
+                    severity,
+                    score,
+                    action_taken,
+                    features
+                )
+                self.anomalies.insert_one(anomaly)
+                
+                # 6. Create notification
+                title = f"{severity} Alert"
+                message = self._get_alert_message(severity, payload)
+                notification = Notification.create(
+                    device_id,
+                    severity,
+                    title,
+                    message,
+                    action_taken
+                )
+                self.notifications.insert_one(notification)
+            except Exception as e:
+                print(f"⚠️  DB Error (Anomaly Write): {e}")
         
         # 7. Prepare result
         result = {
@@ -121,13 +128,16 @@ class AnomalyService:
             return {"status": "error", "message": "No recent data found for this device."}
         
         features = self.last_features[device_id]
-        self.model.train_online(features, correct_label)
+        self.agent.train_online(features, correct_label)
         
         # Save feedback to MongoDB
         if self.use_db:
-            from app.database.models import UserFeedback
-            feedback = UserFeedback.create(device_id, correct_label)
-            self.user_feedback.insert_one(feedback)
+            try:
+                from app.database.models import UserFeedback
+                feedback = UserFeedback.create(device_id, correct_label)
+                self.user_feedback.insert_one(feedback)
+            except Exception as e:
+                print(f"⚠️  DB Error (Feedback Write): {e}")
         
         return {
             "status": "success", 
@@ -137,60 +147,69 @@ class AnomalyService:
     def get_latest_status(self, device_id=None):
         """Get latest status from MongoDB or in-memory cache"""
         if self.use_db and device_id:
-            # Query latest reading from MongoDB
-            latest_reading = self.sensor_readings.find_one(
-                {"device_id": device_id},
-                sort=[("timestamp", -1)]
-            )
-            
-            if latest_reading:
-                # Get latest anomaly if exists
-                latest_anomaly = self.anomalies.find_one(
+            try:
+                # Query latest reading from MongoDB
+                latest_reading = self.sensor_readings.find_one(
                     {"device_id": device_id},
                     sort=[("timestamp", -1)]
                 )
                 
-                # Check if the latest anomaly corresponds to the latest reading
-                # If reading is newer than anomaly > 1 second, then it's a NORMAL reading (since we don't save NORMAL anomalies)
-                is_related_anomaly = False
-                if latest_anomaly:
-                    reading_time = latest_reading.get('timestamp')
-                    anomaly_time = latest_anomaly.get('timestamp')
+                if latest_reading:
+                    # Get latest anomaly if exists
+                    latest_anomaly = self.anomalies.find_one(
+                        {"device_id": device_id},
+                        sort=[("timestamp", -1)]
+                    )
                     
-                    # If reading is local datetime, ensure timezone awareness for comparison
-                    if reading_time.tzinfo is None:
-                        reading_time = reading_time.replace(tzinfo=timezone.utc)
-                    if anomaly_time.tzinfo is None:
-                        anomaly_time = anomaly_time.replace(tzinfo=timezone.utc)
+                    # Check if the latest anomaly corresponds to the latest reading
+                    # If reading is newer than anomaly > 1 second, then it's a NORMAL reading (since we don't save NORMAL anomalies)
+                    is_related_anomaly = False
+                    if latest_anomaly:
+                        reading_time = latest_reading.get('timestamp')
+                        anomaly_time = latest_anomaly.get('timestamp')
                         
-                    # If anomaly is within 2 seconds of reading, it's related
-                    time_diff = abs((reading_time - anomaly_time).total_seconds())
-                    if time_diff < 5.0:  # 5 seconds tolerance
-                        is_related_anomaly = True
+                        # If reading is local datetime, ensure timezone awareness for comparison
+                        if reading_time.tzinfo is None:
+                            reading_time = reading_time.replace(tzinfo=timezone.utc)
+                        if anomaly_time.tzinfo is None:
+                            anomaly_time = anomaly_time.replace(tzinfo=timezone.utc)
+                            
+                        # If anomaly is within 2 seconds of reading, it's related
+                        time_diff = abs((reading_time - anomaly_time).total_seconds())
+                        if time_diff < 5.0:  # 5 seconds tolerance
+                            is_related_anomaly = True
 
-                response = {
-                    "device_id": device_id,
-                    "data": {
-                        "voltage": latest_reading.get('voltage'),
-                        "current": latest_reading.get('current'),
-                        "frequency": latest_reading.get('frequency'),
-                        "temperature": latest_reading.get('temperature'),
-                        "power_factor": latest_reading.get('power_factor')
-                    },
-                    "timestamp": latest_reading.get('timestamp').isoformat() if latest_reading.get('timestamp') else datetime.now(timezone.utc).isoformat()
-                }
-                
-                if latest_anomaly and is_related_anomaly:
-                    response["severity"] = latest_anomaly.get("severity", "NORMAL")
-                    response["anomaly_score"] = latest_anomaly.get("anomaly_score", 0)
-                    response["action"] = latest_anomaly.get("action_taken", "None")
-                else:
-                    response["severity"] = "NORMAL"
-                    response["anomaly_score"] = 0
-                    response["action"] = "None"
-                
-                return response
-        
+                    response = {
+                        "device_id": device_id,
+                        "data": {
+                            "voltage": latest_reading.get('voltage'),
+                            "current": latest_reading.get('current'),
+                            "frequency": latest_reading.get('frequency'),
+                            "temperature": latest_reading.get('temperature'),
+                            "power_factor": latest_reading.get('power_factor')
+                        },
+                        "timestamp": latest_reading.get('timestamp').isoformat() if latest_reading.get('timestamp') else datetime.now(timezone.utc).isoformat()
+                    }
+                    
+                    if latest_anomaly and is_related_anomaly:
+                        response["severity"] = latest_anomaly.get("severity", "NORMAL")
+                        response["anomaly_score"] = latest_anomaly.get("anomaly_score", 0)
+                        response["action"] = latest_anomaly.get("action_taken", "None")
+                    else:
+                        response["severity"] = "NORMAL"
+                        response["anomaly_score"] = 0
+                        response["action"] = "None"
+                    
+                    return response
+            except Exception as e:
+                print(f"⚠️  DB Error (Status Read): {e}")
+                # Fallthrough to in-memory cache
+                pass
+
+        # Fallback to in-memory cache if DB failed or disabled
+        if device_id and device_id in self.latest_outputs:
+            return self.latest_outputs[device_id]
+            
         return None
 
     def get_system_stats(self):
