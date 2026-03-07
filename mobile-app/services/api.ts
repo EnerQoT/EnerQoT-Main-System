@@ -2,14 +2,7 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 
 // For Physical Device Testing (LAN IP):
-// const BASE_URL = 'http://192.168.1.44:5000';
-
-const BASE_URL = Platform.select({
-    web: 'http://localhost:5000',
-    android: 'http://192.168.1.44:5000',
-    ios: 'http://192.168.1.44:5000',
-    default: 'http://192.168.1.44:5000',
-});
+const BASE_URL = 'http://192.168.1.58:5000';
 
 const api = axios.create({
     baseURL: BASE_URL,
@@ -19,7 +12,7 @@ const api = axios.create({
 });
 
 // Existing APIs
-export const getLatestStatus = async (deviceId: string = 'test_device_01') => {
+export const getLatestStatus = async (deviceId: string) => {
     try {
         const response = await api.get(`/status?device_id=${deviceId}`);
         return response.data;
@@ -38,6 +31,19 @@ export const sendFeedback = async (deviceId: string, correctLabel: number) => {
         return response.data;
     } catch (error) {
         console.error("Feedback Error:", error);
+        return null;
+    }
+};
+
+export const sendDeviceCommand = async (deviceId: string, command: "ON" | "OFF") => {
+    try {
+        const response = await api.post('/device/control', {
+            device_id: deviceId,
+            command: command
+        });
+        return response.data;
+    } catch (error: any) {
+        console.error("Error sending device command:", error.message);
         return null;
     }
 };
@@ -96,7 +102,7 @@ export const getDeviceHealth = async (deviceId: string) => {
 
 export const getEnergyTips = async () => {
     try {
-        const response = await api.get('/tips');
+        const response = await api.get('/api/tips/all');
         return response.data;
     } catch (error) {
         console.error("Error fetching tips:", error);

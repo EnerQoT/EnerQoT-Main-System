@@ -41,3 +41,5 @@ pandas
 numpy
 joblib
 scikit-learn
+prophet
+

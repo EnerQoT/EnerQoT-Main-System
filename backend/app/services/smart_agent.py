@@ -53,11 +53,23 @@ class SmartAgent:
         # 2. Hybrid Decision Matrix
         action_log = "No action needed."
         
+
         # CASE A: RL DETECTS ANOMALY (High Confidence Supervised)
         # We trust the RL agent most because it learned from labeled data/feedback.
         if rl_action == 1:
             log_msg = f"RL AGENT TRIGGER: Anomaly pattern detected (Severity: {severity})"
             return self._execute_critical(device_id, log_msg)
+
+        if severity == "CRITICAL":
+            # Action: Flag for Mobile Agent
+            action_log = f"CRITICAL ANOMALY: Reporting to EnerQoT Autonomous Mobile Agent."
+            # self._send_mqtt_command(device_id, "OFF") # Handled by mobile app natively now
+            
+        elif severity == "WARNING":
+            # Action: Notify user
+            action_log = f"WARNING: Abnormal power usage detected for Device {device_id}. Recommendation: Check appliance."
+            self._send_notification(device_id, "Check Device")
+
 
         # CASE B: ISOLATION FOREST SAYS CRITICAL, BUT RL SAYS NORMAL
         # This implies a new/unknown anomaly that RL hasn't seen yet.
@@ -83,11 +95,9 @@ class SmartAgent:
         return f"WARNING: {reason}"
 
     def _send_mqtt_command(self, device_id, command):
-        # Simulation
         print(f"[SMART AGENT] >> MQTT PUB: topic=devices/{device_id}/control, payload={command}")
 
     def _send_notification(self, device_id, message):
-        # Simulation
         print(f"[SMART AGENT] >> NOTIFICATION: Device {device_id}: {message}")
 
     def train_online(self, features, correct_label):

@@ -1,9 +1,48 @@
-import React from 'react';
-import { View, Text, ScrollView, ImageBackground } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, ScrollView, ImageBackground, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { getEnergyTips } from '../../services/api';
 
 export default function Tips() {
+    const [tipsData, setTipsData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const fetchData = async () => {
+        try {
+            const data = await getEnergyTips();
+            setTipsData(data);
+        } catch (error) {
+            console.error("Failed to fetch tips data", error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        fetchData();
+    }, []);
+
+    if (loading && !refreshing) {
+        return (
+            <SafeAreaView className="flex-1 bg-slate-900 justify-center items-center">
+                <ActivityIndicator size="large" color="#3b82f6" />
+                <Text className="text-white mt-4">Analyzing energy patterns...</Text>
+            </SafeAreaView>
+        );
+    }
+
+    const { forecast, top_devices, recommendations } = tipsData || {};
+
+    const currentStatus: string = tipsData && recommendations?.some((r: any) => r.level === 'HIGH') ? "HIGH" : tipsData && recommendations?.some((r: any) => r.level === 'MEDIUM') ? "MEDIUM" : "NORMAL";
+
     return (
         <SafeAreaView className="flex-1 bg-slate-900">
             <ImageBackground
@@ -15,115 +54,163 @@ export default function Tips() {
                 <ScrollView
                     contentContainerStyle={{ padding: 20 }}
                     showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />
+                    }
                 >
                     {/* Header */}
                     <View className="mb-6 mt-2">
                         <Text className="text-3xl font-extrabold text-white tracking-tight">
-                            Energy Tips
+                            Energy Insights
                         </Text>
                         <Text className="text-slate-300 font-semibold text-sm mt-1">
-                            AI-Powered Recommendations
+                            Smart Forecast & Recommendations
                         </Text>
                     </View>
 
-                    {/* Efficiency Score */}
-                    <View className="bg-gradient-to-br from-blue-600 to-purple-600 rounded-3xl p-6 mb-6 shadow-xl">
-                        <Text className="text-white/80 font-bold text-xs uppercase tracking-wider mb-2">
-                            Your Efficiency Score
-                        </Text>
-                        <View className="flex-row items-end">
-                            <Text className="text-white text-6xl font-black">78</Text>
-                            <Text className="text-white/60 text-2xl font-bold mb-2">/100</Text>
+                    {/*Predicted Daily Power Usage Section */}
+                    <View className="mb-6">
+                        <View className="bg-indigo-600 rounded-3xl p-6 border border-white/10 shadow-lg">
+                            <View className="flex-row items-center mb-2">
+                                <View className="bg-white/20 p-2 rounded-xl mr-3">
+                                    <FontAwesome name="line-chart" size={20} color="white" />
+                                </View>
+                                <Text className="text-white font-bold text-lg">Predicted Daily Usage</Text>
+                            </View>
+                            <View className="items-center py-2">
+                                <Text className="text-white text-5xl font-black tracking-tighter">
+                                    {forecast?.today ? forecast.today.toFixed(3) : "0.000"}<Text className="text-lg font-medium text-indigo-200"> kWh</Text>
+                                </Text>
+                                <Text className="text-indigo-200 text-sm mt-1">Expected consumption for today</Text>
+                            </View>
                         </View>
-                        <View className="bg-white/20 rounded-full h-3 mt-4 overflow-hidden">
-                            <View className="bg-slate-400 h-full rounded-full" style={{ width: '78%' }} />
-                        </View>
-                        <Text className="text-white/80 font-medium text-sm mt-3">
-                            Good! You're doing better than 65% of users
-                        </Text>
                     </View>
 
-                    {/* Savings Potential */}
-                    <View className="bg-green-600 rounded-3xl p-5 mb-6 flex-row items-center shadow-lg">
-                        <View className="bg-white/20 p-3 rounded-2xl mr-4">
-                            <FontAwesome name="dollar" size={28} color="white" />
-                        </View>
-                        <View className="flex-1">
-                            <Text className="text-white font-black text-2xl">~15% Savings</Text>
-                            <Text className="text-white/80 font-medium text-sm mt-1">
-                                Potential monthly reduction
+                    {/* 2. Power Status Section */}
+                    <View className="mb-6">
+                        <View className={`rounded-3xl p-6 border border-white/10 ${currentStatus === 'HIGH' ? 'bg-rose-900/20' :
+                                currentStatus === 'LOW' ? 'bg-emerald-900/20' :
+                                    'bg-blue-900/20'
+                            }`}>
+                            <View className="flex-row justify-between items-center">
+                                <View>
+                                    <Text className="text-slate-300 font-semibold text-sm mb-1">Current Status</Text>
+                                    <Text className={`text-3xl font-black tracking-tight ${currentStatus === 'HIGH' ? 'text-rose-400' :
+                                            currentStatus === 'LOW' ? 'text-emerald-400' :
+                                                'text-blue-400'
+                                        }`}>
+                                        {currentStatus}
+                                    </Text>
+                                </View>
+                                <View className={`w-16 h-16 rounded-full items-center justify-center bg-white/5`}>
+                                    <FontAwesome
+                                        name={currentStatus === 'HIGH' ? 'exclamation-triangle' : currentStatus === 'LOW' ? 'leaf' : 'bolt'}
+                                        size={32}
+                                        color={currentStatus === 'HIGH' ? '#fb7185' : currentStatus === 'LOW' ? '#34d399' : '#60a5fa'}
+                                    />
+                                </View>
+                            </View>
+                            <Text className="text-white/60 text-xs mt-3">
+                                {currentStatus === 'HIGH' ? 'High power usage detected. Consider reducing load.' :
+                                    currentStatus === 'LOW' ? 'Great job! Power usage is efficient.' :
+                                        'Power usage is within normal limits.'}
                             </Text>
                         </View>
                     </View>
 
-                    {/* Recommendations */}
-                    <Text className="text-white font-bold text-lg mb-4 ml-1">Personalized Tips</Text>
+                    {/* 3. Device Consumption Details with Tips */}
+                    {recommendations && recommendations.length > 0 && (
+                        <View className="mb-8">
+                            <Text className="text-white font-bold text-lg mb-4 ml-1">Device Consumption</Text>
+                            <View className="bg-slate-800/60 rounded-3xl p-5 border border-white/5">
+                                {recommendations.map((device: any, index: number) => (
+                                    <View key={index} className={`${index !== recommendations.length - 1 ? 'mb-6 pb-6 border-b border-white/5' : ''}`}>
+                                        <View className="flex-row items-center justify-between mb-2">
+                                            <View className="flex-row items-center">
+                                                <View className="bg-white/10 w-10 h-10 rounded-full items-center justify-center mr-4">
+                                                    <FontAwesome name="plug" size={16} color="#94a3b8" />
+                                                </View>
+                                                <Text className="text-white font-semibold text-base">{device.device}</Text>
+                                            </View>
+                                            <Text className="text-blue-400 font-bold">{device.usage_kwh?.toFixed(1) || '0.0'} <Text className="text-xs text-slate-500">kWh</Text></Text>
+                                        </View>
+                                        {/* Tip Section */}
+                                        <View className="ml-14 bg-blue-500/10 p-3 rounded-xl border border-blue-500/20">
+                                            <View className="flex-row items-center mb-1">
+                                                <FontAwesome name="lightbulb-o" size={12} color="#60a5fa" style={{ marginRight: 6 }} />
+                                                <Text className="text-blue-400 text-xs font-bold uppercase">Energy Tip</Text>
+                                            </View>
+                                            <Text className="text-slate-300 text-xs leading-4">
+                                                {device.recommendation}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    )}
 
-                    <TipCard
-                        icon="clock-o"
-                        color="#f59e0b"
-                        title="Peak Usage Detected"
-                        description="Your consumption spikes between 8-10 PM. Consider shifting heavy appliances to off-peak hours to reduce costs."
-                        priority="HIGH"
-                    />
+                    {/* Top Devices Section */}
+                    {top_devices && Object.keys(top_devices).length > 0 && (
+                        <View className="mb-8">
+                            <Text className="text-white font-bold text-lg mb-4 ml-1">Highest Consumers Today</Text>
+                            <View className="bg-slate-800/60 rounded-3xl p-5 border border-white/5">
+                                {Object.entries(top_devices).map(([device, usage], index) => (
+                                    <View key={device} className={`flex-row items-center justify-between ${index !== Object.keys(top_devices).length - 1 ? 'mb-4 pb-4 border-b border-white/5' : ''}`}>
+                                        <View className="flex-row items-center">
+                                            <View className="bg-white/10 w-10 h-10 rounded-full items-center justify-center mr-4">
+                                                <FontAwesome name="plug" size={16} color="#94a3b8" />
+                                            </View>
+                                            <Text className="text-white font-semibold text-base">{device}</Text>
+                                        </View>
+                                        <Text className="text-blue-400 font-bold">{String(usage)} <Text className="text-xs text-slate-500">kWh</Text></Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    )}
 
-                    <TipCard
-                        icon="flash"
-                        color="#ef4444"
-                        title="Low Power Factor"
-                        description="Your power factor is averaging 0.75. Check for inductive loads like motors or transformers that may need correction."
-                        priority="MEDIUM"
-                    />
-
-                    <TipCard
-                        icon="thermometer-half"
-                        color="#f97316"
-                        title="Temperature Alert"
-                        description="Temperature rises during high load periods. Ensure proper ventilation around electrical equipment."
-                        priority="MEDIUM"
-                    />
-
-                    <TipCard
-                        icon="lightbulb-o"
-                        color="#22c55e"
-                        title="Energy Optimization"
-                        description="Your voltage fluctuations are minimal. Great job maintaining stable power quality!"
-                        priority="LOW"
-                    />
-
-                    <TipCard
-                        icon="line-chart"
-                        color="#3b82f6"
-                        title="Usage Pattern"
-                        description="Your consumption is 12% lower than last month. Keep up the good work!"
-                        priority="LOW"
-                    />
-
-                    {/* Usage Patterns */}
-                    <View className="bg-slate-800/80 rounded-3xl p-5 border border-white/10 mt-4 mb-20">
-                        <Text className="text-white font-bold text-lg mb-4">Daily Usage Pattern</Text>
-                        <View className="flex-row items-end justify-between h-40">
-                            {[30, 45, 40, 55, 50, 70, 85, 95, 90, 75, 60, 50].map((height, index) => (
-                                <View key={index} className="flex-1 items-center">
-                                    <View
-                                        className="bg-blue-500 w-full rounded-t-lg"
-                                        style={{ height: `${height}%` }}
-                                    />
-                                    <Text className="text-slate-400 text-[10px] mt-2">{index * 2}h</Text>
-                                </View>
+                    {/* Recommendations Section */}
+                    {recommendations && recommendations.length > 0 ? (
+                        <View>
+                            <Text className="text-white font-bold text-lg mb-4 ml-1">Personalized Tips</Text>
+                            {recommendations.map((rec: any, index: number) => (
+                                <TipCard
+                                    key={index}
+                                    icon="lightbulb-o"
+                                    color={getPriorityColor(rec.level)}
+                                    title={`Device Alert: ${rec.device}`}
+                                    description={rec.recommendation}
+                                    priority={rec.level}
+                                    usage={rec.usage_kwh}
+                                />
                             ))}
                         </View>
-                        <Text className="text-slate-400 text-xs mt-4 text-center">
-                            Average hourly consumption (kWh)
-                        </Text>
-                    </View>
+                    ) : (
+                        loading && (
+                            <View className="p-10 items-center">
+                                <FontAwesome name="check-circle" size={40} color="#22c55e" />
+                                <Text className="text-slate-400 mt-4 text-center">No active recommendations. Your energy usage looks optimized!</Text>
+                            </View>
+                        )
+                    )}
+
+                    <View className="h-20" />
                 </ScrollView>
             </ImageBackground>
         </SafeAreaView>
     );
 }
 
-const TipCard = ({ icon, color, title, description, priority }: any) => {
+const getPriorityColor = (level: string) => {
+    switch (level) {
+        case 'HIGH': return '#ef4444'; // red
+        case 'MEDIUM': return '#f59e0b'; // amber
+        default: return '#3b82f6'; // blue
+    }
+};
+
+const TipCard = ({ icon, color, title, description, priority, usage }: any) => {
     const priorityColors: any = {
         HIGH: 'bg-rose-500/20 border-rose-500/30',
         MEDIUM: 'bg-amber-500/20 border-amber-500/30',
@@ -137,19 +224,22 @@ const TipCard = ({ icon, color, title, description, priority }: any) => {
     };
 
     return (
-        <View className={`rounded-2xl p-4 mb-3 border ${priorityColors[priority]}`}>
+        <View className={`rounded-2xl p-4 mb-3 border ${priorityColors[priority] || priorityColors.LOW}`}>
             <View className="flex-row items-start">
                 <View className="mr-3 mt-1">
                     <FontAwesome name={icon} size={22} color={color} />
                 </View>
                 <View className="flex-1">
                     <View className="flex-row items-center justify-between mb-2">
-                        <Text className="text-white font-bold text-base flex-1">{title}</Text>
-                        <Text className={`${priorityTextColors[priority]} text-xs font-bold uppercase`}>
+                        <Text className="text-white font-bold text-base flex-1 mr-2">{title}</Text>
+                        <Text className={`${priorityTextColors[priority] || priorityTextColors.LOW} text-xs font-bold uppercase`}>
                             {priority}
                         </Text>
                     </View>
-                    <Text className="text-slate-300 text-sm leading-5">{description}</Text>
+                    <Text className="text-slate-300 text-sm leading-5 mb-2">{description}</Text>
+                    {usage && (
+                        <Text className="text-slate-500 text-xs">Current Usage: {usage} kWh</Text>
+                    )}
                 </View>
             </View>
         </View>

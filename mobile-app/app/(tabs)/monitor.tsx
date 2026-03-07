@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Dimensions, ImageBackground } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LineChart } from 'react-native-chart-kit';
@@ -14,7 +14,15 @@ export default function Monitor() {
     const [history, setHistory] = useState<number[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const [timeRange, setTimeRange] = useState('20s');
-    const { isPowerOn } = usePower();
+    const { isPowerOn, setIsPowerOn, lastKnownTimestamp, setLastKnownTimestamp } = usePower();
+
+    const isPowerOnRef = useRef(isPowerOn);
+    // Use a localized string reference to fix race conditions with index.tsx updating contexts too fast
+    const localLastProcessedTimestampRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        isPowerOnRef.current = isPowerOn;
+    }, [isPowerOn]);
 
     // Determine max data points and polling interval based on time range
     const getTimeRangeConfig = (range: string) => {
@@ -37,12 +45,23 @@ export default function Monitor() {
 
     // Poll for data
     const fetchData = async () => {
-        if (!isPowerOn) return; // Don't fetch if power is off
-
         try {
-            const result = await getLatestStatus('testdayve'); // Pass device ID
-            console.log('Fetched data:', result); // Debug log
+            const result = await getLatestStatus('test_device_01'); // Pass device ID
+            // console.log('Fetched data:', result); // Debug log
             if (result && result.data) {
+                if (localLastProcessedTimestampRef.current && result.timestamp && result.timestamp === localLastProcessedTimestampRef.current) {
+                    return; // Ignore exact same payload we've already drawn
+                }
+
+                // If device turned on manually/broadcasts new string natively
+                if (!isPowerOnRef.current) {
+                    setIsPowerOn(true);
+                }
+
+                // Note: We still update the global so other components act on it, but we track our local ref purely for our chart
+                setLastKnownTimestamp(result.timestamp);
+                localLastProcessedTimestampRef.current = result.timestamp;
+
                 setData(result);
                 // Calculate Power (W) = V * I * PF
                 const power = result.data.voltage * result.data.current * result.data.power_factor;
@@ -58,7 +77,10 @@ export default function Monitor() {
     };
 
     useEffect(() => {
-        if (!isPowerOn) return; // Don't poll if power is off
+        if (!isPowerOn) {
+            setData(null); // Clear live data
+            setHistory([]); // Clear chart history
+        }
 
         const interval = setInterval(fetchData, config.interval);
         fetchData(); // Initial fetch

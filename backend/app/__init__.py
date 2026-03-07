@@ -28,8 +28,15 @@ def create_app(config_name='development'):
     # Register blueprints
     from app.api.routes.anomaly_routes import anomaly_bp
     from app.api.routes.admin_routes import admin_bp
+    from app.api.routes.energy_routes import energy_bp
+    
     app.register_blueprint(anomaly_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(energy_bp)
+    
+    from app.api.routes.tips_routes import api as tips_bp
+    app.register_blueprint(tips_bp, url_prefix='/api/tips')
+
     
     # Initialize extensions
     # db.init_app(app)
