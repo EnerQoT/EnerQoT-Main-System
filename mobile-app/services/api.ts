@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 
 // For Physical Device Testing (LAN IP):
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = 'http://192.168.1.58:5000';
 
 const api = axios.create({
     baseURL: BASE_URL,
@@ -31,6 +31,19 @@ export const sendFeedback = async (deviceId: string, correctLabel: number) => {
         return response.data;
     } catch (error) {
         console.error("Feedback Error:", error);
+        return null;
+    }
+};
+
+export const sendDeviceCommand = async (deviceId: string, command: "ON" | "OFF") => {
+    try {
+        const response = await api.post('/device/control', {
+            device_id: deviceId,
+            command: command
+        });
+        return response.data;
+    } catch (error: any) {
+        console.error("Error sending device command:", error.message);
         return null;
     }
 };

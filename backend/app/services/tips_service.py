@@ -2,8 +2,9 @@ import os
 import joblib
 import pandas as pd
 import numpy as np
-from datetime import datetime
-from .config import MODELS_DIR, SIMULATED_DATA_PATH, PARTIAL_FACTOR
+from datetime import datetime, timezone
+from app.services.config import MODELS_DIR as MODEL_DIR, PARTIAL_FACTOR
+from app.database.connection import get_collection, is_db_connected
 
 class ModelService:
     _instance = None
@@ -24,11 +25,11 @@ class ModelService:
 
     def load_models(self):
         # Paths
-        p_model = os.path.join(MODELS_DIR, "prophet_energy_model.pkl")
-        p_scaler = os.path.join(MODELS_DIR, "temperature_scaler.pkl")
-        p_stats = os.path.join(MODELS_DIR, "device_stats.pkl")
-        p_recs = os.path.join(MODELS_DIR, "base_recommendations.pkl")
-        p_levels = os.path.join(MODELS_DIR, "recommendation_levels.pkl")
+        p_model = os.path.join(MODEL_DIR, "prophet_energy_model.pkl")
+        p_scaler = os.path.join(MODEL_DIR, "temperature_scaler.pkl")
+        p_stats = os.path.join(MODEL_DIR, "device_stats.pkl")
+        p_recs = os.path.join(MODEL_DIR, "base_recommendations.pkl")
+        p_levels = os.path.join(MODEL_DIR, "recommendation_levels.pkl")
 
         # Load
         try:
@@ -59,17 +60,51 @@ class TipsService:
         self.models = ModelService.get_instance()
         self.std_multiplier = 1.0
         
-        # In a real app, this would be a DB query. Here we load CSV once or per request.
-        # Check if file exists to avoid crash
-        if os.path.exists(SIMULATED_DATA_PATH):
-            self.df = pd.read_csv(SIMULATED_DATA_PATH)
+        # Load Data
+        self.df = pd.DataFrame(columns=['date', 'power_usage', 'temperature', 'device'])
+        self.refresh_data()
+
+    def refresh_data(self):
+        """Fetches the latest data from MongoDB instead of a local file."""
+        if not is_db_connected():
+            print("WARNING: Database not connected, running TipsService with empty data.")
+            return
+
+        readings_col = get_collection("sensor_readings")
+        if readings_col is None:
+            return
+            
+        # Get last 1000 readings
+        recent_readings = list(readings_col.find({}, {"_id": 0}).sort("timestamp", -1).limit(1000))
+        if not recent_readings:
+            print("INFO: No historical data in database.")
+            return
+
+        parsed_data = []
+        for r in recent_readings:
+            v = r.get("voltage", 230)
+            i = r.get("current", 0)
+            pf = r.get("power_factor", 1)
+            power_watts = v * i * pf
+            power_kwh = power_watts / 1000
+
+            parsed_data.append({
+                'date': r.get("timestamp"),
+                'power_usage': power_kwh,
+                'temperature': r.get("temperature", 25.0),
+                'device': r.get("device_id", "Unknown")
+            })
+
+        self.df = pd.DataFrame(parsed_data)
+        if not self.df.empty:
             self.df['date'] = pd.to_datetime(self.df['date'])
-        else:
-            self.df = pd.DataFrame(columns=['date', 'power_usage', 'temperature', 'device'])
-            print(f"WARNING: Simulated data missing at {SIMULATED_DATA_PATH}")
 
     def _get_today(self):
-        return datetime.now().date()
+        # The MongoDB timestamps are natively UTC or system offset.
+        # Use the latest actual date from our database dataframe to avoid false 0-value lookups over midnight.
+        if not self.df.empty and 'date' in self.df.columns:
+            return self.df['date'].dt.date.max()
+        return datetime.now(timezone.utc).date()
     
     def update_config(self, key, value):
         if key == 'std_multiplier':

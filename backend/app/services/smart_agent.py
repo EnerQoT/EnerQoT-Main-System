@@ -11,9 +11,9 @@ class SmartAgent:
         action_log = "No action needed."
         
         if severity == "CRITICAL":
-            # Action: Turn off device (Simulated)
-            action_log = f"CRITICAL ANOMALY: Initiating Emergency Shutdown for Device {device_id} via Smart Plug."
-            self._send_mqtt_command(device_id, "OFF")
+            # Action: Flag for Mobile Agent
+            action_log = f"CRITICAL ANOMALY: Reporting to EnerQoT Autonomous Mobile Agent."
+            # self._send_mqtt_command(device_id, "OFF") # Handled by mobile app natively now
             
         elif severity == "WARNING":
             # Action: Notify user
@@ -23,9 +23,7 @@ class SmartAgent:
         return action_log
 
     def _send_mqtt_command(self, device_id, command):
-        # Simulation
         print(f"[SMART AGENT] >> MQTT PUB: topic=devices/{device_id}/control, payload={command}")
 
     def _send_notification(self, device_id, message):
-        # Simulation
         print(f"[SMART AGENT] >> NOTIFICATION: Device {device_id}: {message}")

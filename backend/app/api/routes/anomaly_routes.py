@@ -42,6 +42,31 @@ def status():
         return jsonify({"status": "no_data"}), 200
     return jsonify(result)
 
+from datetime import datetime, timezone
+
+@anomaly_bp.route("/device/control", methods=["POST"])
+def device_control():
+    """Simulate sending an MQTT command to a physical device"""
+    data = request.json
+    
+    if not data or "device_id" not in data or "command" not in data:
+        return jsonify({"error": "Missing device_id or command"}), 400
+        
+    device_id = data["device_id"]
+    command = data["command"]
+    
+    if command not in ["ON", "OFF"]:
+        return jsonify({"error": "Invalid command. Must be 'ON' or 'OFF'"}), 400
+        
+    # Hook into the smart agent's existing MQTT capability
+    service.agent._send_mqtt_command(device_id, command)
+    
+    return jsonify({
+        "status": "success", 
+        "message": f"Command {command} sent to device {device_id}",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
+
 # New endpoints for real data integration
 
 @anomaly_bp.route("/history/<device_id>", methods=["GET"])

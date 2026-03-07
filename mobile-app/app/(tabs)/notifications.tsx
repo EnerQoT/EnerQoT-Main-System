@@ -1,88 +1,42 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ImageBackground } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, ImageBackground, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { getNotifications } from '../../services/api';
 
 export default function Notifications() {
     const [filter, setFilter] = useState('All');
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     const filters = ['All', 'Critical', 'Warning', 'Normal', 'Actions'];
 
-    // Mock notifications data
-    const notifications = [
-        {
-            id: 1,
-            severity: 'CRITICAL',
-            title: 'Critical Anomaly Detected',
-            message: 'Voltage sag detected at Device testdayve. Immediate action required.',
-            action: 'Power cut initiated',
-            time: '2 min ago',
-            read: false
-        },
-        {
-            id: 2,
-            severity: 'WARNING',
-            title: 'High Temperature Alert',
-            message: 'Temperature exceeded 75°C threshold.',
-            action: 'Alert sent to admin',
-            time: '15 min ago',
-            read: false
-        },
-        {
-            id: 3,
-            severity: 'NORMAL',
-            title: 'System Stabilized',
-            message: 'All parameters returned to normal range.',
-            action: 'None',
-            time: '1 hour ago',
-            read: true
-        },
-        {
-            id: 4,
-            severity: 'CRITICAL',
-            title: 'Overcurrent Event',
-            message: 'Current exceeded 20A limit. Potential equipment damage.',
-            action: 'Load shedding applied',
-            time: '3 hours ago',
-            read: true
-        },
-        {
-            id: 5,
-            severity: 'WARNING',
-            title: 'Low Power Factor',
-            message: 'Power factor dropped to 0.72. Check inductive loads.',
-            action: 'Notification sent',
-            time: '5 hours ago',
-            read: true
-        },
-        {
-            id: 6,
-            severity: 'NORMAL',
-            title: 'Routine Check Completed',
-            message: 'Automated system health check passed successfully.',
-            action: 'None',
-            time: '1 day ago',
-            read: true
-        },
-        {
-            id: 7,
-            severity: 'CRITICAL',
-            title: 'Frequency Deviation',
-            message: 'Grid frequency deviated to 48.5Hz. Critical threshold breached.',
-            action: 'Emergency shutdown',
-            time: '2 days ago',
-            read: true
-        },
-        {
-            id: 8,
-            severity: 'WARNING',
-            title: 'Voltage Fluctuation',
-            message: 'Voltage fluctuating between 210-245V.',
-            action: 'Monitoring increased',
-            time: '3 days ago',
-            read: true
+    const fetchData = async () => {
+        try {
+            const result = await getNotifications('test_device_01');
+            if (result && result.notifications) {
+                setNotifications(result.notifications);
+            }
+        } catch (error) {
+            console.error("Failed to fetch notifications:", error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
         }
-    ];
+    };
+
+    useEffect(() => {
+        fetchData();
+        // Poll slowly for new notifications
+        const interval = setInterval(fetchData, 10000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        fetchData();
+    }, []);
 
     const filteredNotifications = notifications.filter(notif => {
         if (filter === 'All') return true;
@@ -99,6 +53,7 @@ export default function Notifications() {
                 resizeMode="cover"
             >
                 <ScrollView
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />}
                     contentContainerStyle={{ padding: 20 }}
                     showsVerticalScrollIndicator={false}
                 >
@@ -138,11 +93,27 @@ export default function Notifications() {
                         ))}
                     </ScrollView>
 
-                    {/* Notifications List */}
                     <View className="mb-20">
-                        {filteredNotifications.map((notif) => (
-                            <NotificationCard key={notif.id} notification={notif} />
-                        ))}
+                        {loading && !refreshing ? (
+                            <View className="py-20 justify-center items-center">
+                                <ActivityIndicator size="large" color="#3b82f6" />
+                                <Text className="text-slate-400 mt-4">Loading alerts...</Text>
+                            </View>
+                        ) : filteredNotifications.length === 0 ? (
+                            <View className="py-20 justify-center items-center">
+                                <View className="bg-white/5 w-20 h-20 justify-center items-center rounded-full mb-4">
+                                    <FontAwesome name="bell-slash-o" size={32} color="#64748b" />
+                                </View>
+                                <Text className="text-white font-bold text-lg">No Notifications</Text>
+                                <Text className="text-slate-500 text-center mt-2 mx-8">
+                                    You have no alerts matching this filter criteria.
+                                </Text>
+                            </View>
+                        ) : (
+                            filteredNotifications.map((notif: any, i: number) => (
+                                <NotificationCard key={notif.id || i} notification={notif} />
+                            ))
+                        )}
                     </View>
                 </ScrollView>
             </ImageBackground>
