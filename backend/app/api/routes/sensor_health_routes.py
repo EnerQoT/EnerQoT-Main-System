@@ -21,7 +21,7 @@ def check_health():
     color = "green"
     
     # Logic from user requirement
-    if score < 45:
+    if score < 40:
         status = "CRITICAL WARNING"
         color = "red"
         # Since we know the score is low, let's find out WHY (Simple Rule Check)

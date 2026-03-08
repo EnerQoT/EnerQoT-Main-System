@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ImageBackground, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ImageBackground, ActivityIndicator, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
+import { LineChart } from 'react-native-chart-kit';
 
 // Backend URL - Adjust based on the environment
 // Genymotion: http://10.0.3.2:5000
@@ -18,6 +19,15 @@ export default function DeviceHealth() {
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
     const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
+
+    // Chart history state
+    const [chartHistory, setChartHistory] = useState({
+        labels: ['-30s', '-25s', '-20s', '-15s', '-10s', '-5s', 'Now'],
+        cpu_temp: [0, 0, 0, 0, 0, 0, 0],
+        rssi: [-100, -100, -100, -100, -100, -100, -100],
+        humidity: [0, 0, 0, 0, 0, 0, 0],
+        ambient_temp: [0, 0, 0, 0, 0, 0, 0],
+    });
 
     const generateAnalysis = async () => {
         if (!healthData) return;
@@ -54,6 +64,16 @@ export default function DeviceHealth() {
             console.log("Data fetched:", response.data);
             setHealthData(response.data);
             setLastUpdated(new Date().toLocaleTimeString());
+
+            // Update chart history
+            const sensors = response.data.sensors || {};
+            setChartHistory(prev => ({
+                ...prev,
+                cpu_temp: [...prev.cpu_temp.slice(1), sensors.cpu_temp || 0],
+                rssi: [...prev.rssi.slice(1), sensors.rssi || -100],
+                humidity: [...prev.humidity.slice(1), sensors.humidity || 0],
+                ambient_temp: [...prev.ambient_temp.slice(1), sensors.ambient_temp || 0],
+            }));
         } catch (error: any) {
             console.error("Error fetching dashboard data:", error.message);
         } finally {
@@ -102,6 +122,30 @@ export default function DeviceHealth() {
         { label: 'Firmware Build', value: '2025.01.15' },
         { label: 'Last Update', value: lastUpdated || 'Syncing...' },
     ];
+
+    const chartConfig = {
+        backgroundGradientFrom: "#1e293b",
+        backgroundGradientTo: "#0f172a",
+        color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
+        labelColor: (opacity = 1) => `rgba(148, 163, 184, ${opacity})`,
+        propsForDots: { r: "4", strokeWidth: "2", stroke: "#10b981" },
+        decimalPlaces: 1,
+    };
+
+    const rssiChartConfig = {
+        ...chartConfig,
+        color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
+        propsForDots: { r: "4", strokeWidth: "2", stroke: "#8b5cf6" },
+        decimalPlaces: 0,
+    };
+
+    const envChartConfig = {
+        ...chartConfig,
+        color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+        propsForDots: { r: "0", strokeWidth: "0" },
+    };
+
+    const screenWidth = Dimensions.get("window").width;
 
     if (loading && !healthData) {
         return (
@@ -197,6 +241,61 @@ export default function DeviceHealth() {
                         )) : (
                             <Text className="text-slate-400 italic">No metrics available</Text>
                         )}
+                    </View>
+
+                    {/* Charts */}
+                    <Text className="text-white font-bold text-lg mb-4 ml-1">Historical Trends</Text>
+
+                    <View className="bg-slate-800/80 rounded-3xl p-4 border border-white/10 mb-6">
+                        <Text className="text-slate-300 font-bold mb-4">CPU Temperature (°C)</Text>
+                        <LineChart
+                            data={{
+                                labels: chartHistory.labels,
+                                datasets: [{ data: chartHistory.cpu_temp }]
+                            }}
+                            width={screenWidth - 88}
+                            height={180}
+                            chartConfig={chartConfig}
+                            bezier
+                            style={{ borderRadius: 16 }}
+                            withInnerLines={false}
+                        />
+                    </View>
+
+                    <View className="bg-slate-800/80 rounded-3xl p-4 border border-white/10 mb-6">
+                        <Text className="text-slate-300 font-bold mb-4">Signal Strength (RSSI dBm)</Text>
+                        <LineChart
+                            data={{
+                                labels: chartHistory.labels,
+                                datasets: [{ data: chartHistory.rssi }]
+                            }}
+                            width={screenWidth - 88}
+                            height={180}
+                            chartConfig={rssiChartConfig}
+                            bezier
+                            style={{ borderRadius: 16 }}
+                            withInnerLines={false}
+                        />
+                    </View>
+
+                    <View className="bg-slate-800/80 rounded-3xl p-4 border border-white/10 mb-6">
+                        <Text className="text-slate-300 font-bold mb-4">Environment</Text>
+                        <LineChart
+                            data={{
+                                labels: chartHistory.labels,
+                                datasets: [
+                                    { data: chartHistory.ambient_temp, color: (opacity = 1) => `rgba(245, 158, 11, ${opacity})` }, // orange
+                                    { data: chartHistory.humidity, color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})` } // blue
+                                ],
+                                legend: ["Temp (°C)", "Hum (%)"]
+                            }}
+                            width={screenWidth - 88}
+                            height={180}
+                            chartConfig={envChartConfig}
+                            bezier
+                            style={{ borderRadius: 16 }}
+                            withInnerLines={false}
+                        />
                     </View>
 
                     {/* System Information */}
