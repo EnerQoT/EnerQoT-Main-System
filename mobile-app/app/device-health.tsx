@@ -16,6 +16,36 @@ export default function DeviceHealth() {
     const [loading, setLoading] = useState(true);
     const [healthData, setHealthData] = useState<any>(null);
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+    const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    const generateAnalysis = async () => {
+        if (!healthData) return;
+        setIsGenerating(true);
+        setAiAnalysis(null);
+        try {
+            // Call the local backend instead of Groq directly
+            const response = await axios.post(`${API_URL.replace('/dashboard/data', '/api/analysis/generate')}`, {
+                telemetry: {
+                    cpu_temp: healthData.sensors?.cpu_temp,
+                    battery_voltage: healthData.sensors?.battery_voltage,
+                    rssi: healthData.sensors?.rssi,
+                    health_status: healthData.health?.status || 'Unknown'
+                }
+            });
+
+            if (response.data && response.data.analysis) {
+                setAiAnalysis(response.data.analysis);
+            } else {
+                setAiAnalysis("No analysis could be generated. Please try again.");
+            }
+        } catch (error: any) {
+            console.error("Error generating analysis:", error.response?.data || error.message);
+            setAiAnalysis("Error reaching the backend analysis service. Please try again later.");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
 
     const fetchData = async () => {
         try {
@@ -117,16 +147,32 @@ export default function DeviceHealth() {
 
                     {/* AI Analysis */}
                     <View className="bg-slate-800/80 rounded-3xl p-5 border border-white/10 mb-6">
-                        <View className="flex-row items-center mb-3">
-                            <FontAwesome name="magic" size={16} color="#3b82f6" />
-                            <Text className="text-white font-bold text-lg ml-2">AI Analysis</Text>
+                        <View className="flex-row items-center justify-between mb-3">
+                            <View className="flex-row items-center">
+                                <FontAwesome name="magic" size={16} color="#3b82f6" />
+                                <Text className="text-white font-bold text-lg ml-2">AI Analysis</Text>
+                            </View>
                         </View>
-                        <Text className="text-slate-300 text-sm leading-6">
-                            Based on the current sensor telemetry, the system is operating within optimal parameters.
-                            Power consumption efficiency is rated at 94%, and battery voltage holding steady at nominal levels.
-                            A slight variance in CPU temperature was noted but remains well below the thermal throttling threshold.
-                            <Text className="font-bold text-white"> Recommendation: </Text> No immediate maintenance actions are required at this time.
+                        <Text className="text-slate-300 text-sm leading-6 mb-4">
+                            {aiAnalysis ? aiAnalysis : "Click the button below to generate a dynamic health analysis based on current sensor telemetry. This may take a few seconds."}
                         </Text>
+                        <TouchableOpacity
+                            onPress={generateAnalysis}
+                            disabled={isGenerating || !healthData}
+                            className={`rounded-2xl py-3 flex-row items-center justify-center ${isGenerating ? 'bg-slate-700' : 'bg-blue-600'}`}
+                        >
+                            {isGenerating ? (
+                                <>
+                                    <ActivityIndicator size="small" color="#94a3b8" />
+                                    <Text className="text-slate-400 font-bold ml-2">Analyzing...</Text>
+                                </>
+                            ) : (
+                                <>
+                                    <FontAwesome name="rocket" size={16} color="white" />
+                                    <Text className="text-white font-bold ml-2">Generate Analysis</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
                     </View>
 
                     {/* Health Metrics */}

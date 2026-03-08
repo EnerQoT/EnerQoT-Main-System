@@ -43,6 +43,9 @@ def create_app(config_name='development'):
 
     from app.api.routes.dashboard_routes import dashboard_bp
     app.register_blueprint(dashboard_bp)    
+
+    from app.api.routes.analysis_routes import analysis_bp
+    app.register_blueprint(analysis_bp)
     
     # Initialize extensions
     # db.init_app(app)

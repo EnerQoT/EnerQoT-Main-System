@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from pymongo import MongoClient, ASCENDING, DESCENDING
-from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, ConfigurationError
 from datetime import datetime, timedelta
 import logging
 
@@ -51,7 +51,7 @@ class MongoDB:
             # Create indexes
             self._create_indexes()
             
-        except (ConnectionFailure, ServerSelectionTimeoutError) as e:
+        except (ConnectionFailure, ServerSelectionTimeoutError, ConfigurationError) as e:
             logger.error(f"❌ Failed to connect to MongoDB: {e}")
             logger.warning("⚠️  Running without database - using in-memory storage")
             self.db = None

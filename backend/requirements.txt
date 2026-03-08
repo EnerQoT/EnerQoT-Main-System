@@ -43,3 +43,4 @@ joblib
 scikit-learn
 prophet
 
+groq>=1.0.0
