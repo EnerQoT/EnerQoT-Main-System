@@ -84,7 +84,11 @@ temp/
 *.tmp
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 firebase_credentials.json
+=======
+
+>>>>>>> Stashed changes
 =======
 
 >>>>>>> Stashed changes
