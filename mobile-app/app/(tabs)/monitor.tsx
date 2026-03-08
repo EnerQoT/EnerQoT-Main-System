@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LineChart } from 'react-native-chart-kit';
-import { getLatestStatus, sendFeedback } from '../../services/api';
+import { getLatestStatus, sendFeedback, getHistoricalData } from '../../services/api';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import TimeRangeSelector from '../components/TimeRangeSelector';
 import { usePower } from '../contexts/PowerContext';
@@ -269,9 +269,29 @@ export default function Monitor() {
             setHistory([]);
             setDeviceOffline(false);
             lastDataReceivedAtRef.current = Date.now();
+            return;
         }
-        const interval = setInterval(fetchData, config.interval);
+
+        const fetchHistory = async () => {
+            try {
+                const histData = await getHistoricalData('test_device_01', timeRange);
+                if (histData && histData.data) {
+                    const mapped = histData.data.map((d: any) => (d.voltage * d.current * d.power_factor) || 0);
+                    // Ensure we don't exceed maxPoints of the selected timeRange
+                    setHistory(mapped.slice(-config.maxPoints));
+                }
+            } catch (e) {
+                console.log("Error fetching history", e);
+            }
+        };
+
+        // Load historical backfill on mount or range change
+        fetchHistory();
+
+        // Load accurate live reading immediately, then setup poll
         fetchData();
+        const interval = setInterval(fetchData, config.interval);
+
         return () => clearInterval(interval);
     }, [timeRange, isPowerOn]);
 
@@ -415,10 +435,12 @@ export default function Monitor() {
                     {/* ── Live Metrics Grid ── */}
                     <Text className="text-white font-bold text-lg mb-4 ml-1">Live Metrics</Text>
                     <View className="flex-row flex-wrap justify-between mb-2">
-                        <SensorCard label="Voltage" value={isPowerOn ? data?.data?.voltage : undefined} unit="V" icon="flash" color="text-yellow-400" bgColor="bg-yellow-400/10" />
-                        <SensorCard label="Current" value={isPowerOn ? data?.data?.current : undefined} unit="A" icon="bolt" color="text-cyan-400" bgColor="bg-cyan-400/10" />
-                        <SensorCard label="Frequency" value={isPowerOn ? data?.data?.frequency : undefined} unit="Hz" icon="dashboard" color="text-purple-400" bgColor="bg-purple-400/10" />
-                        <SensorCard label="Temp" value={isPowerOn ? data?.data?.temperature : undefined} unit="°C" icon="thermometer" color="text-rose-400" bgColor="bg-rose-400/10" />
+                        <SensorCard label="Voltage" value={isPowerOn ? data?.data?.voltage : undefined} unit="V" icon="flash" color="text-yellow-400" bgColor="bg-yellow-400/10" iconColor="#facc15" />
+                        <SensorCard label="Current" value={isPowerOn ? data?.data?.current : undefined} unit="A" icon="bolt" color="text-cyan-400" bgColor="bg-cyan-400/10" iconColor="#22d3ee" />
+                        <SensorCard label="Power" value={isPowerOn && data?.data ? (data.data.voltage * data.data.current * data.data.power_factor).toFixed(1) : undefined} unit="W" icon="plug" color="text-emerald-400" bgColor="bg-emerald-400/10" iconColor="#34d399" />
+                        <SensorCard label="Temp" value={isPowerOn ? data?.data?.temperature : undefined} unit="°C" icon="thermometer" color="text-rose-400" bgColor="bg-rose-400/10" iconColor="#fb7185" />
+                        <SensorCard label="Frequency" value={isPowerOn ? data?.data?.frequency : undefined} unit="Hz" icon="dashboard" color="text-purple-400" bgColor="bg-purple-400/10" iconColor="#a78bfa" />
+                        <SensorCard label="Power Factor" value={isPowerOn ? data?.data?.power_factor : undefined} unit="" icon="leaf" color="text-lime-400" bgColor="bg-lime-400/10" iconColor="#a3e635" />
                     </View>
 
                     {/* ── Time Range Selector ── */}
@@ -478,15 +500,15 @@ export default function Monitor() {
 }
 
 // ---------------------------------------------------------------
-// SensorCard (unchanged)
+// SensorCard 
 // ---------------------------------------------------------------
-const SensorCard = ({ label, value, unit, icon, color, bgColor }: any) => (
+const SensorCard = ({ label, value, unit, icon, color, bgColor, iconColor }: any) => (
     <View className="bg-slate-800/80 w-[48%] p-5 rounded-3xl mb-4 shadow-lg border border-white/5 backdrop-blur-sm">
         <View className={`w-10 h-10 ${bgColor} rounded-full justify-center items-center mb-3`}>
             <FontAwesome
                 name={icon}
                 size={18}
-                color={color === 'text-yellow-400' ? '#facc15' : color === 'text-cyan-400' ? '#22d3ee' : color === 'text-purple-400' ? '#a78bfa' : '#fb7185'}
+                color={iconColor || (color === 'text-yellow-400' ? '#facc15' : color === 'text-cyan-400' ? '#22d3ee' : color === 'text-purple-400' ? '#a78bfa' : '#fb7185')}
             />
         </View>
         <Text className="text-3xl font-black text-white tracking-tight">

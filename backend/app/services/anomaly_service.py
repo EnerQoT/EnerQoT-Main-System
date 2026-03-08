@@ -459,9 +459,33 @@ class AnomalyService:
             sort=[("timestamp", 1)]
         ))
 
+        # Downsample if too many data points (max ~100 points for mobile chart)
+        MAX_POINTS = 100
+        if len(readings) > MAX_POINTS:
+            chunk_size = len(readings) // MAX_POINTS
+            downsampled = []
+            
+            for i in range(0, len(readings), chunk_size):
+                chunk = readings[i:i+chunk_size]
+                if not chunk: continue
+                
+                avg_voltage = sum(r.get('voltage', 0) for r in chunk) / len(chunk)
+                avg_current = sum(r.get('current', 0) for r in chunk) / len(chunk)
+                avg_pf = sum(r.get('power_factor', 0) for r in chunk) / len(chunk)
+                # Keep the timestamp of the last item in the chunk to represent the block
+                downsampled.append({
+                    "_id": str(chunk[-1]['_id']),
+                    "timestamp": chunk[-1]['timestamp'],
+                    "voltage": round(avg_voltage, 2),
+                    "current": round(avg_current, 3),
+                    "power_factor": round(avg_pf, 2)
+                })
+            readings = downsampled
+
         for reading in readings:
-            reading['_id'] = str(reading['_id'])
-            if 'timestamp' in reading:
+            if not isinstance(reading['_id'], str):
+                reading['_id'] = str(reading['_id'])
+            if 'timestamp' in reading and not isinstance(reading['timestamp'], str):
                 reading['timestamp'] = reading['timestamp'].isoformat()
 
         return readings

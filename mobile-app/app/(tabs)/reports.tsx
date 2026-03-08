@@ -1,26 +1,48 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ImageBackground, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, ImageBackground, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { LineChart, BarChart } from 'react-native-chart-kit';
+import { LineChart } from 'react-native-chart-kit';
+import { getReports } from '../../services/api';
 
 const screenWidth = Dimensions.get("window").width;
 
 export default function Reports() {
     const [selectedPeriod, setSelectedPeriod] = useState('Daily');
+    const [loading, setLoading] = useState(true);
+    const [reportData, setReportData] = useState<any>(null);
 
     const periods = ['Daily', 'Weekly', 'Monthly'];
 
-    // Mock data
-    const dailyData = [2.1, 2.5, 2.3, 2.8, 2.6, 3.2, 3.5];
-    const weeklyData = [18, 22, 20, 25, 23, 28, 26, 30];
-    const monthlyData = [450, 480, 520, 490, 510, 540];
+    useEffect(() => {
+        const fetchReports = async () => {
+            setLoading(true);
+            try {
+                const data = await getReports('test_device_01', selectedPeriod.toLowerCase());
+                setReportData(data);
+            } catch (error) {
+                console.error('Failed to fetch reports', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchReports();
+    }, [selectedPeriod]);
 
-    const getData = () => {
-        if (selectedPeriod === 'Daily') return dailyData;
-        if (selectedPeriod === 'Weekly') return weeklyData;
-        return monthlyData;
+    const getChartData = () => {
+        if (!reportData || !reportData.energy_data || reportData.energy_data.length === 0) {
+            return [0];
+        }
+        return reportData.energy_data.map((d: any) =>
+            (d.voltage * d.current * d.power_factor) || 0
+        ).slice(-30);
     };
+
+    const stats = reportData?.statistics || {};
+    const totalEnergy = stats.total_energy_kwh ?? 0;
+    const avgVoltage = stats.avg_voltage ?? 0;
+    const totalAnomalies = stats.total_anomalies ?? 0;
+    const uptimePercentage = stats.uptime_percentage ?? "99.8";
 
     return (
         <SafeAreaView className="flex-1 bg-slate-900">
@@ -59,111 +81,84 @@ export default function Reports() {
                         ))}
                     </View>
 
-                    {/* Summary Stats */}
-                    <View className="flex-row flex-wrap justify-between mb-6">
-                        <StatCard
-                            icon="bolt"
-                            label="Total Energy"
-                            value="1,245"
-                            unit="kWh"
-                            color="#22d3ee"
-                        />
-                        <StatCard
-                            icon="flash"
-                            label="Avg Voltage"
-                            value="230.5"
-                            unit="V"
-                            color="#facc15"
-                        />
-                        <StatCard
-                            icon="warning"
-                            label="Anomalies"
-                            value="12"
-                            unit="events"
-                            color="#f87171"
-                        />
-                        <StatCard
-                            icon="check-circle"
-                            label="Uptime"
-                            value="99.8"
-                            unit="%"
-                            color="#4ade80"
-                        />
-                    </View>
+                    {loading ? (
+                        <View className="flex-1 justify-center items-center py-20">
+                            <ActivityIndicator size="large" color="#3b82f6" />
+                            <Text className="text-slate-400 mt-4 font-bold">Generating report...</Text>
+                        </View>
+                    ) : (
+                        <>
+                            {/* Summary Stats */}
+                            <View className="flex-row flex-wrap justify-between mb-6">
+                                <StatCard icon="bolt" label="Total Energy" value={totalEnergy} unit="kWh" color="#22d3ee" />
+                                <StatCard icon="flash" label="Avg Voltage" value={avgVoltage} unit="V" color="#facc15" />
+                                <StatCard icon="warning" label="Anomalies" value={totalAnomalies} unit="events" color="#f87171" />
+                                <StatCard icon="check-circle" label="Uptime" value={uptimePercentage} unit="%" color="#4ade80" />
+                            </View>
 
-                    {/* Consumption Trend */}
-                    <View className="bg-slate-800/80 rounded-3xl p-5 shadow-lg mb-6 border border-white/10">
-                        <Text className="text-lg font-bold text-white mb-4">
-                            Energy Consumption Trend
-                        </Text>
-                        <LineChart
-                            data={{
-                                labels: selectedPeriod === 'Daily' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] :
-                                    selectedPeriod === 'Weekly' ? ['W1', 'W2', 'W3', 'W4', 'W5', 'W6', 'W7', 'W8'] :
-                                        ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                                datasets: [{ data: getData() }]
-                            }}
-                            width={screenWidth - 80}
-                            height={220}
-                            withDots={true}
-                            withInnerLines={true}
-                            withOuterLines={false}
-                            withVerticalLines={false}
-                            yAxisInterval={1}
-                            chartConfig={{
-                                backgroundColor: "transparent",
-                                backgroundGradientFrom: "#1e293b",
-                                backgroundGradientTo: "#1e293b",
-                                decimalPlaces: 1,
-                                color: (opacity = 1) => `rgba(34, 211, 238, ${opacity})`,
-                                labelColor: (opacity = 1) => `rgba(148, 163, 184, ${opacity})`,
-                                propsForBackgroundLines: {
-                                    strokeDasharray: "4",
-                                    stroke: "#334155"
-                                },
-                                fillShadowGradientFrom: "#22d3ee",
-                                fillShadowGradientTo: "#1e293b",
-                                fillShadowGradientOpacity: 0.3,
-                            }}
-                            bezier
-                            style={{ borderRadius: 16 }}
-                        />
-                    </View>
+                            {/* Consumption Trend */}
+                            <View className="bg-slate-800/80 rounded-3xl p-5 shadow-lg mb-6 border border-white/10">
+                                <Text className="text-lg font-bold text-white mb-4">
+                                    Energy Consumption Trend (W)
+                                </Text>
+                                <LineChart
+                                    data={{
+                                        labels: [], // No labels for dense data to preserve cleanliness
+                                        datasets: [{ data: getChartData() }]
+                                    }}
+                                    width={screenWidth - 80}
+                                    height={220}
+                                    withDots={false}
+                                    withInnerLines={true}
+                                    withOuterLines={false}
+                                    withVerticalLines={false}
+                                    yAxisInterval={1}
+                                    chartConfig={{
+                                        backgroundColor: "transparent",
+                                        backgroundGradientFrom: "#1e293b",
+                                        backgroundGradientTo: "#1e293b",
+                                        decimalPlaces: 0,
+                                        color: (opacity = 1) => `rgba(34, 211, 238, ${opacity})`,
+                                        labelColor: (opacity = 1) => `rgba(148, 163, 184, ${opacity})`,
+                                        propsForBackgroundLines: {
+                                            strokeDasharray: "4",
+                                            stroke: "#334155"
+                                        },
+                                        fillShadowGradientFrom: "#22d3ee",
+                                        fillShadowGradientTo: "#1e293b",
+                                        fillShadowGradientOpacity: 0.3,
+                                    }}
+                                    bezier
+                                    style={{ borderRadius: 16 }}
+                                />
+                            </View>
 
-                    {/* Anomaly Timeline */}
-                    <View className="bg-slate-800/80 rounded-3xl p-5 border border-white/10 mb-6">
-                        <Text className="text-white font-bold text-lg mb-4">Anomaly Timeline</Text>
-                        <AnomalyEvent
-                            severity="CRITICAL"
-                            title="Voltage Sag Detected"
-                            time="2024-01-05 10:45 PM"
-                            action="Power cut initiated"
-                        />
-                        <AnomalyEvent
-                            severity="WARNING"
-                            title="High Temperature"
-                            time="2024-01-05 08:30 PM"
-                            action="Alert sent to admin"
-                        />
-                        <AnomalyEvent
-                            severity="WARNING"
-                            title="Overcurrent Event"
-                            time="2024-01-04 02:15 PM"
-                            action="Load shedding applied"
-                        />
-                        <AnomalyEvent
-                            severity="CRITICAL"
-                            title="Frequency Deviation"
-                            time="2024-01-03 11:20 AM"
-                            action="Emergency shutdown"
-                        />
-                    </View>
+                            {/* Anomaly Timeline */}
+                            <View className="bg-slate-800/80 rounded-3xl p-5 border border-white/10 mb-6">
+                                <Text className="text-white font-bold text-lg mb-4">Anomaly Timeline</Text>
+                                {(!reportData?.anomalies || reportData.anomalies.length === 0) ? (
+                                    <Text className="text-slate-400 font-bold self-center py-4">No anomalies in this period</Text>
+                                ) : (
+                                    reportData.anomalies.map((anomaly: any, index: number) => (
+                                        <AnomalyEvent
+                                            key={anomaly._id || index}
+                                            severity={anomaly.severity}
+                                            title={anomaly.message || `${anomaly.severity} Grid Event`}
+                                            time={new Date(anomaly.timestamp).toLocaleString()}
+                                            action={anomaly.feedback_status === "confirmed" ? "Confirmed by user" :
+                                                anomaly.feedback_status === "false_alarm" ? "Marked as False Alarm" : "Pending feedback"}
+                                        />
+                                    ))
+                                )}
+                            </View>
 
-                    {/* Export Button */}
-                    <TouchableOpacity className="bg-blue-600 rounded-2xl p-4 flex-row items-center justify-center mb-20">
-                        <FontAwesome name="download" size={20} color="white" />
-                        <Text className="text-white font-bold text-base ml-3">Download PDF Report</Text>
-                    </TouchableOpacity>
+                            {/* Export Button */}
+                            <TouchableOpacity className="bg-blue-600 rounded-2xl p-4 flex-row items-center justify-center mb-20">
+                                <FontAwesome name="download" size={20} color="white" />
+                                <Text className="text-white font-bold text-base ml-3">Download PDF Report</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
                 </ScrollView>
             </ImageBackground>
         </SafeAreaView>
