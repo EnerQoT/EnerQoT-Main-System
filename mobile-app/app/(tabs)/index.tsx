@@ -11,12 +11,14 @@ export default function Home() {
     const [refreshing, setRefreshing] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
     const [shutdownCountdown, setShutdownCountdown] = useState<number | null>(null);
+    const [deviceOffline, setDeviceOffline] = useState(false);
     const router = useRouter();
     const { isPowerOn, setIsPowerOn, lastKnownTimestamp, setLastKnownTimestamp, isAutoShutdownEnabled, setIsAutoShutdownEnabled, turnOffPower } = usePower();
 
     const isPowerOnRef = useRef(isPowerOn);
     const lastTimestampRef = useRef(lastKnownTimestamp);
     const isAutoShutdownEnabledRef = useRef(isAutoShutdownEnabled);
+    const lastDataReceivedAtRef = useRef<number>(Date.now());  // wall-clock ms
 
     useEffect(() => {
         isPowerOnRef.current = isPowerOn;
@@ -44,28 +46,23 @@ export default function Home() {
 
     const fetchData = async () => {
         try {
-            const result = await getLatestStatus('test_device_01'); // Pass device ID
+            const result = await getLatestStatus('test_device_01');
             if (result && result.data) {
                 if (lastTimestampRef.current && result.timestamp && result.timestamp === lastTimestampRef.current) {
-                    // Exact same payload as before we turned the device off. Ignore it.
                     return;
                 }
-
-                // Wait, if it's new data and power is supposed to be off, the physical device came online manually! 
-                // We should turn the app ON automatically to reflect real-world hardware status!
-                if (!isPowerOnRef.current) {
-                    setIsPowerOn(true);
-                }
-
+                if (!isPowerOnRef.current) setIsPowerOn(true);
                 setLastKnownTimestamp(result.timestamp);
                 setData(result);
 
-                // EnerQoT Mobile Autonomous Agent Logic
+                // Update wall-clock of last actual new data
+                lastDataReceivedAtRef.current = Date.now();
+                setDeviceOffline(false);
+
                 if (result.severity === "CRITICAL") {
                     if (isAutoShutdownEnabledRef.current) {
                         setShutdownCountdown(prev => prev === null ? 5 : prev);
                     } else {
-                        // Just warn if auto-shutdown is disabled
                         Alert.alert(
                             "EnerQoT Agent Warning",
                             "Critical grid anomaly detected! Auto-shutdown is disabled. Please verify metrics.",
@@ -94,16 +91,28 @@ export default function Home() {
         return () => clearInterval(interval);
     }, [shutdownCountdown, turnOffPower]);
 
+    // 30-second inactivity watchdog — marks device offline if no new data
+    useEffect(() => {
+        const watchdog = setInterval(() => {
+            const elapsed = Date.now() - lastDataReceivedAtRef.current;
+            if (elapsed > 30000 && isPowerOnRef.current) {
+                setDeviceOffline(true);
+            }
+        }, 5000);
+        return () => clearInterval(watchdog);
+    }, []);
+
     // Constant background polling loop
     useEffect(() => {
         if (!isPowerOn) {
-            setData(null); // Clear data initially when it switches to off
+            setData(null);
+            setDeviceOffline(false);
+            lastDataReceivedAtRef.current = Date.now(); // reset timer when manually turned off
         }
-
         const interval = setInterval(fetchData, 2000);
         fetchData();
         return () => clearInterval(interval);
-    }, [isPowerOn]); // Depend on isPowerOn so turning off re-mounts interval cleanly 
+    }, [isPowerOn]);
 
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
@@ -140,7 +149,7 @@ export default function Home() {
                     showsVerticalScrollIndicator={false}
                 >
                     {/* Status Card */}
-                    {!isPowerOn ? (
+                    {!isPowerOn || deviceOffline ? (
                         <View className="w-full rounded-3xl p-6 shadow-xl mb-6 bg-slate-700">
                             <View className="flex-row justify-between items-start">
                                 <View>
@@ -148,18 +157,19 @@ export default function Home() {
                                         Current Status
                                     </Text>
                                     <Text className="text-white text-4xl font-black tracking-tighter">
-                                        OFFLINE
+                                        {deviceOffline && isPowerOn ? 'OFFLINE' : 'OFF'}
                                     </Text>
                                 </View>
                                 <View className="bg-white/20 p-3 rounded-2xl">
                                     <FontAwesome name="power-off" size={24} color="white" />
                                 </View>
                             </View>
-
                             <View className="mt-6 bg-black/10 rounded-xl p-3 flex-row items-center">
-                                <FontAwesome name="info-circle" size={16} color="white" className="opacity-80" />
+                                <FontAwesome name="info-circle" size={16} color="white" />
                                 <Text className="text-white font-medium ml-2 opacity-90">
-                                    Turn on device to view current status
+                                    {deviceOffline && isPowerOn
+                                        ? 'No data received for 30s — device may be off or disconnected'
+                                        : 'Turn on device to view current status'}
                                 </Text>
                             </View>
                         </View>

@@ -2,20 +2,24 @@
 import joblib
 import numpy as np
 import os
-import tensorflow as tf
-from config.settings import IFOREST_PATH, SCALER_PATH, MODEL_DIR
-from app.models.rl_model import DQN_Agent
+from config.settings import IFOREST_PATH, SCALER_PATH
+
+# Weight for combining iForest and DQN scores
+# DQN at 50% means user feedback corrections kick in faster.
+# Tradeoff: a fresh model without feedback will rely more on DQN guesses.
+IFOREST_WEIGHT = 0.55
+DQN_WEIGHT = 0.45
 
 class HybridAnomalyModel:
     def __init__(self):
         self.load_models()
 
     def load_models(self):
-        # Load Scaler
+        # Load Scaler (for iForest)
         if os.path.exists(SCALER_PATH):
             self.scaler = joblib.load(SCALER_PATH)
         else:
-            print("Warning: Scaler not found.")
+            print("Warning: iForest Scaler not found.")
             self.scaler = None
 
         # Load iForest
@@ -25,99 +29,101 @@ class HybridAnomalyModel:
             print("Warning: iForest model not found.")
             self.iforest = None
 
-        # Load RL Model
-        # We need to know state size to init DQN_Agent. 
-        # Assuming 8 features as per current engineering.
-        self.rl_agent = DQN_Agent(state_size=8)
-        rl_path = os.path.join(MODEL_DIR, "rl_model.keras")
-        if os.path.exists(rl_path):
-            try:
-                self.rl_agent.load(rl_path)
-                self.rl_agent.epsilon = 0.0 # Force deterministic inference
-            except Exception as e:
-                print(f"Error loading RL model: {e}")
-        else:
-            print(f"Warning: RL model not found at {rl_path}")
+    def iforest_score(self, features):
+        """
+        Returns an anomaly score (0.0 to 1.0) based on Isolation Forest alone.
+        features: numpy array shape (1, 8)
+        Returns: float [0, 1] — higher = more anomalous
+        """
+        if self.scaler is None or self.iforest is None:
+            return 0.0
+
+        try:
+            X_scaled = self.scaler.transform(features)
+            # decision_function < 0 → Anomaly. Map: score = 0.5 - raw_score
+            raw_score = self.iforest.decision_function(X_scaled)[0]
+            anomaly_score = 0.5 - raw_score
+            return float(np.clip(anomaly_score, 0.0, 1.0))
+        except Exception as e:
+            print(f"Error in iForest scoring: {e}")
+            return 0.0
 
     def score(self, features):
         """
-        Returns a combined anomaly score (0.0 to 1.0) and severity.
-        features: numpy array shape (1, 8)
+        Legacy method — returns iForest score alone.
+        Use combined_score() for full hybrid scoring when DQN is available.
         """
-        if self.scaler is None:
-            print("ERROR: Scaler is NOT loaded. Returning 0.0 score.")
-            return 0.0
+        return self.iforest_score(features)
 
-        X_scaled = self.scaler.transform(features)
+    def combined_score(self, features, dqn_q_values=None):
+        """
+        Returns a unified hybrid anomaly score [0, 1] combining:
+          - Isolation Forest score (70% weight)
+          - DQN confidence from Q-values (30% weight)
 
-        # 1. iForest Score
-        if_score_norm = 0.0
-        if self.iforest:
-            raw_score = -self.iforest.decision_function(X_scaled)[0]
-            # Normalize roughly: decision function is approx [-0.5, 0.5] usually
-            # We map it to [0, 1]
-            if_score_norm = max(0.0, min(1.0, (raw_score + 0.5)))
+        Args:
+            features:      numpy array shape (1, 8)
+            dqn_q_values:  numpy array shape (2,) — [Q(normal), Q(anomaly)]
+                           If None, falls back to iForest-only scoring.
 
-        # 2. RL Agent Action
-        # Agent returns 1 for Anomaly, 0 for Normal
-        # But we can also look at Q-values for finer granularity if we want.
-        # For now, let's trust the action.
-        rl_action = self.rl_agent.act(X_scaled) # 0 or 1
-        
-        # Hybrid Logic
-        # If RL says Anomaly (1) -> It's a strong signal (based on reward/label).
-        # If iForest says Anomaly (high score) -> It's a statistical outlier.
-        
-        # We can say: if RL triggers, it's definitely an anomaly.
-        # If iForest is very high, it's also an anomaly.
-        
-        final_score = if_score_norm
-        
-        if rl_action == 1:
-            # RL detected a known anomaly pattern
-            final_score = max(final_score, 0.9) 
-            
-        return final_score
+        Returns:
+            dict with keys:
+              - combined_score:   float [0, 1]  — primary anomaly score
+              - iforest_score:    float [0, 1]
+              - dqn_confidence:   float [0, 1]  — DQN's probability of anomaly
+              - dqn_action:       int (0=Normal, 1=Anomaly)
+              - mode:             str ("hybrid" | "iforest_only")
+        """
+        if_score = self.iforest_score(features)
+
+        if dqn_q_values is not None:
+            try:
+                q = np.array(dqn_q_values, dtype=np.float64)
+
+                # Guard: reject NaN or Inf Q-values (fall back to iForest-only)
+                if not np.all(np.isfinite(q)):
+                    print(f"[HybridModel] DQN Q-values not finite ({q}) - using iForest only.")
+                    return {
+                        "combined_score": if_score,
+                        "iforest_score": if_score,
+                        "dqn_confidence": 0.0,
+                        "dqn_action": 0,
+                        "mode": "iforest_only"
+                    }
+
+                # Stable softmax with epsilon guard
+                q_shifted = q - np.max(q)
+                exp_q = np.exp(q_shifted)
+                softmax_q = exp_q / (np.sum(exp_q) + 1e-9)
+                dqn_confidence = float(np.clip(softmax_q[1], 0.0, 1.0))
+                dqn_action = int(np.argmax(q))
+
+                # Weighted combination
+                score = IFOREST_WEIGHT * if_score + DQN_WEIGHT * dqn_confidence
+                score = float(np.clip(score, 0.0, 1.0))
+
+                return {
+                    "combined_score": score,
+                    "iforest_score": if_score,
+                    "dqn_confidence": dqn_confidence,
+                    "dqn_action": dqn_action,
+                    "mode": "hybrid"
+                }
+            except Exception as e:
+                print(f"[HybridModel] Error combining DQN scores: {e}. Falling back to iForest.")
+
+        # iForest-only fallback
+        return {
+            "combined_score": if_score,
+            "iforest_score": if_score,
+            "dqn_confidence": 0.0,
+            "dqn_action": 0,
+            "mode": "iforest_only"
+        }
 
     def train_online(self, features, correct_label):
         """
-        Online learning adjustment based on user feedback.
-        correct_label: 0 (Normal) or 1 (Anomaly)
+        Placeholder for Isolation Forest online learning.
+        Actual online RL training is handled by SmartAgent.train_online().
         """
-        # If user says it's Normal (0), but we predicted Anomaly -> False Positive.
-        # We want to encourage Action 0.
-        # State = features
-        # Action = correct_label
-        # Reward = +10 (Big reward for being correct)
-        
-        # We treat 'next_state' as same as state for this instant correction (simplification)
-        state = self.scaler.transform(features)
-        action = correct_label
-        reward = 10.0
-        next_state = state
-        done = False
-        
-        # 1. Modify Memory
-        self.rl_agent.remember(state, action, reward, next_state, done)
-        
-        # 2. Trigger immediate training step (Replay)
-        # We use a small batch size (e.g., 16) or just 1 if memory is small
-        current_mem_size = len(self.rl_agent.memory)
-        batch_size = min(32, current_mem_size)
-        
-        if batch_size > 0:
-            # DEBUG: Check prediction BEFORE training
-            q_values_before = self.rl_agent.model.predict(state, verbose=0)
-            
-            self.rl_agent.replay(batch_size)
-            
-            # DEBUG: Check prediction AFTER training
-            q_values_after = self.rl_agent.model.predict(state, verbose=0)
-            
-            print(f"[Adaptive Learning] Feedback: Label={correct_label}")
-            print(f"   -> Q-Values Before: {q_values_before[0]}")
-            print(f"   -> Q-Values After:  {q_values_after[0]}")
-            print(f"   -> Model updated successfully.")
-            
-        # Optional: Save the updated model occasionally
-        # self.rl_agent.save(os.path.join(MODEL_DIR, "updated_rl_model.keras"))
+        pass

@@ -9,7 +9,7 @@ from bson import ObjectId
 
 class SensorReading:
     """Sensor reading document model"""
-    
+
     @staticmethod
     def create(device_id, voltage, current, frequency, temperature, power_factor):
         """Create a sensor reading document"""
@@ -27,22 +27,30 @@ class SensorReading:
 
 class Anomaly:
     """Anomaly detection result model"""
-    
+
     @staticmethod
-    def create(device_id, severity, anomaly_score, action_taken, features=None):
-        """Create an anomaly document"""
-        # Convert features to dict if it's a numpy array or None
+    def create(device_id, severity, anomaly_score, action_taken, features=None,
+               iforest_score=None, dqn_confidence=None, rl_action=None, scoring_mode=None):
+        """
+        Create an anomaly document.
+
+        Now includes hybrid model metadata:
+          - iforest_score:    float — raw Isolation Forest score
+          - dqn_confidence:   float — DQN softmax probability of anomaly
+          - rl_action:        int   — DQN final action (0=Normal, 1=Anomaly)
+          - scoring_mode:     str   — "hybrid" | "iforest_only"
+        """
+        # Convert features to serializable form
         if features is None:
             features_dict = {}
         elif hasattr(features, 'tolist'):
-            # It's a numpy array, convert to list
             features_dict = {"values": features.tolist()}
         elif isinstance(features, dict):
             features_dict = features
         else:
             features_dict = {}
-            
-        return {
+
+        doc = {
             "device_id": device_id,
             "timestamp": datetime.now(timezone.utc),
             "severity": severity,
@@ -52,10 +60,22 @@ class Anomaly:
             "created_at": datetime.now(timezone.utc)
         }
 
+        # Hybrid model metadata (optional, present when RL model is loaded)
+        if iforest_score is not None:
+            doc["iforest_score"] = float(iforest_score)
+        if dqn_confidence is not None:
+            doc["dqn_confidence"] = float(dqn_confidence)
+        if rl_action is not None:
+            doc["rl_action"] = int(rl_action)
+        if scoring_mode is not None:
+            doc["scoring_mode"] = scoring_mode
+
+        return doc
+
 
 class Notification:
     """Notification/Alert model"""
-    
+
     @staticmethod
     def create(device_id, severity, title, message, action="None"):
         """Create a notification document"""
@@ -67,13 +87,16 @@ class Notification:
             "message": message,
             "action": action,
             "read": False,
+            # Feedback fields (populated when user responds)
+            "feedback_type": None,        # "confirm" | "false_alarm" | None
+            "feedback_submitted_at": None,
             "created_at": datetime.now(timezone.utc)
         }
 
 
 class User:
     """User profile model"""
-    
+
     @staticmethod
     def create(name, email, role="user"):
         """Create a user document"""
@@ -87,15 +110,34 @@ class User:
 
 
 class UserFeedback:
-    """User feedback for online learning"""
-    
+    """User feedback for online DQN learning"""
+
     @staticmethod
-    def create(device_id, correct_label, user_id=None):
-        """Create a feedback document"""
+    def create(device_id, correct_label, feedback_type=None, notification_id=None,
+               original_prediction=None, original_score=None, features_snapshot=None,
+               user_id=None):
+        """
+        Create a feedback document.
+
+        Args:
+            device_id:            str  — device that generated the anomaly
+            correct_label:        int  — 0=Normal, 1=Anomaly
+            feedback_type:        str  — "confirm" | "false_alarm"
+            notification_id:      str  — linked notification MongoDB ObjectId
+            original_prediction:  str  — what the model predicted ("WARNING", "CRITICAL", etc.)
+            original_score:       float — model's combined anomaly score at time of alert
+            features_snapshot:    list  — feature vector at time of alert (for replay)
+            user_id:              str  — optional user who gave feedback
+        """
         return {
             "device_id": device_id,
             "timestamp": datetime.now(timezone.utc),
             "correct_label": int(correct_label),
+            "feedback_type": feedback_type,           # "confirm" or "false_alarm"
+            "notification_id": notification_id,       # Link back to notification
+            "original_prediction": original_prediction,
+            "original_score": float(original_score) if original_score is not None else None,
+            "features_snapshot": features_snapshot,   # Enables offline replay later
             "user_id": user_id,
             "created_at": datetime.now(timezone.utc)
         }
@@ -103,7 +145,7 @@ class UserFeedback:
 
 class Device:
     """Device metadata model"""
-    
+
     @staticmethod
     def create(device_id, name, location="Unknown", device_type="sensor"):
         """Create a device document"""
