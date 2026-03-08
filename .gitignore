@@ -82,3 +82,6 @@ logs/
 tmp/
 temp/
 *.tmp
+
+firebase_credentials.json
+firebase_bridge.py
