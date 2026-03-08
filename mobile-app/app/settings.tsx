@@ -20,13 +20,6 @@ export default function Settings() {
                 resizeMode="cover"
             >
                 <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
-                    {/* Header */}
-                    <View className="flex-row items-center mb-8 mt-2">
-                        <TouchableOpacity onPress={() => router.back()} className="bg-white/10 p-2 rounded-full mr-4">
-                            <FontAwesome name="arrow-left" size={20} color="white" />
-                        </TouchableOpacity>
-                        <Text className="text-2xl font-extrabold text-white">Settings</Text>
-                    </View>
 
                     {/* Appearance */}
                     <View className="bg-slate-800/80 rounded-3xl p-5 border border-white/10 mb-4">

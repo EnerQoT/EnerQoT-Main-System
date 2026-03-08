@@ -91,13 +91,6 @@ export default function DeviceHealth() {
                 resizeMode="cover"
             >
                 <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
-                    {/* Header */}
-                    <View className="flex-row items-center mb-8 mt-2">
-                        <TouchableOpacity onPress={() => router.back()} className="bg-white/10 p-2 rounded-full mr-4">
-                            <FontAwesome name="arrow-left" size={20} color="white" />
-                        </TouchableOpacity>
-                        <Text className="text-2xl font-extrabold text-white">Device Health</Text>
-                    </View>
 
                     {/* Overall Status */}
                     <View

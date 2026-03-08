@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 
 // For Physical Device Testing (LAN IP):
-const BASE_URL = 'http://192.168.1.44:5000';
+const BASE_URL = 'http://192.168.1.58:5000';
 
 const api = axios.create({
     baseURL: BASE_URL,
@@ -11,8 +11,10 @@ const api = axios.create({
     },
 });
 
-// Existing APIs
-export const getLatestStatus = async (deviceId: string = 'testdayve') => {
+// ---------------------------------------------------------------
+// Anomaly & Status
+// ---------------------------------------------------------------
+export const getLatestStatus = async (deviceId: string) => {
     try {
         const response = await api.get(`/status?device_id=${deviceId}`);
         return response.data;
@@ -22,21 +24,81 @@ export const getLatestStatus = async (deviceId: string = 'testdayve') => {
     }
 };
 
-export const sendFeedback = async (deviceId: string, correctLabel: number) => {
+export const sendDeviceCommand = async (deviceId: string, command: "ON" | "OFF") => {
     try {
-        const response = await api.post('/feedback', {
+        const response = await api.post('/device/control', {
             device_id: deviceId,
-            correct_label: correctLabel
+            command: command
         });
         return response.data;
-    } catch (error) {
-        console.error("Feedback Error:", error);
+    } catch (error: any) {
+        console.error("Error sending device command:", error.message);
         return null;
     }
 };
 
-// New APIs for real data integration
+// ---------------------------------------------------------------
+// Feedback (DQN Online Learning)
+// ---------------------------------------------------------------
 
+/**
+ * Submit feedback from the Notifications screen.
+ * Maps to the new /feedback/notification endpoint which
+ * triggers DQN online learning and updates the notification record.
+ *
+ * @param notificationId  MongoDB _id of the notification
+ * @param deviceId        Device that generated the anomaly
+ * @param feedbackType    "confirm" (real anomaly) | "false_alarm"
+ * @param correctSeverity What the severity SHOULD have been: "NORMAL" | "WARNING" | "CRITICAL"
+ *                        Required when feedbackType is "false_alarm"
+ */
+export const sendNotificationFeedback = async (
+    notificationId: string,
+    deviceId: string,
+    feedbackType: 'confirm' | 'false_alarm',
+    correctSeverity?: 'NORMAL' | 'WARNING' | 'CRITICAL'
+) => {
+    try {
+        const response = await api.post('/feedback/notification', {
+            notification_id: notificationId,
+            device_id: deviceId,
+            feedback_type: feedbackType,
+            ...(correctSeverity ? { correct_severity: correctSeverity } : {})
+        });
+        return response.data;
+    } catch (error: any) {
+        console.error("Notification Feedback Error:", error.message);
+        return null;
+    }
+};
+
+/**
+ * Legacy feedback endpoint — for monitor tab or direct feedback without notification_id.
+ * Pass correctSeverity when feedback_type is 'false_alarm' for graduated reward shaping.
+ */
+export const sendFeedback = async (
+    deviceId: string,
+    correctLabel: number,
+    feedbackType?: 'confirm' | 'false_alarm',
+    correctSeverity?: 'NORMAL' | 'WARNING' | 'CRITICAL'
+) => {
+    try {
+        const response = await api.post('/feedback', {
+            device_id: deviceId,
+            correct_label: correctLabel,
+            feedback_type: feedbackType,
+            ...(correctSeverity ? { correct_severity: correctSeverity } : {})
+        });
+        return response.data;
+    } catch (error: any) {
+        console.error("Feedback Error:", error.message);
+        return null;
+    }
+};
+
+// ---------------------------------------------------------------
+// Historical & Notifications
+// ---------------------------------------------------------------
 export const getHistoricalData = async (deviceId: string, range: string) => {
     try {
         const response = await api.get(`/history/${deviceId}?range=${range}`);
@@ -47,9 +109,15 @@ export const getHistoricalData = async (deviceId: string, range: string) => {
     }
 };
 
-export const getNotifications = async (deviceId: string, severity: string = 'all', limit: number = 50) => {
+export const getNotifications = async (
+    deviceId: string,
+    severity: string = 'all',
+    limit: number = 50
+) => {
     try {
-        const response = await api.get(`/notifications/${deviceId}?severity=${severity}&limit=${limit}`);
+        const response = await api.get(
+            `/notifications/${deviceId}?severity=${severity}&limit=${limit}`
+        );
         return response.data;
     } catch (error) {
         console.error("Error fetching notifications:", error);
@@ -87,9 +155,19 @@ export const getDeviceHealth = async (deviceId: string) => {
     }
 };
 
+export const getAgentStats = async () => {
+    try {
+        const response = await api.get('/agent-stats');
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching agent stats:", error);
+        return null;
+    }
+};
+
 export const getEnergyTips = async () => {
     try {
-        const response = await api.get('/tips');
+        const response = await api.get('/api/tips/all');
         return response.data;
     } catch (error) {
         console.error("Error fetching tips:", error);
