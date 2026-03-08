@@ -96,8 +96,12 @@ class EnergyService:
         if d_stat.empty:
             return result
             
-        mean = d_stat['mean'].values[0]
-        std = d_stat['std'].values[0]
+        mean = float(d_stat['mean'].values[0])
+        std = float(d_stat['std'].values[0])
+        
+        # Output the exact stats for parity with TipsService
+        result["historical_mean"] = round(mean, 2)
+        result["std_dev"] = round(std, 2)
         
         # Adjust thresholds by multiplier
         effective_std = std * self.std_multiplier

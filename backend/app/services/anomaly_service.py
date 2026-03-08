@@ -191,7 +191,7 @@ class AnomalyService:
                 
                 return response
         
-        return None
+        return self._in_memory_latest_status(device_id)
 
     def get_system_stats(self):
         """Get aggregated system statistics for admin dashboard"""
@@ -278,6 +278,7 @@ class AnomalyService:
             
         return enriched_devices
         
+    def _in_memory_latest_status(self, device_id=None):
         # Fallback to in-memory cache
         target_id = device_id
         if not target_id:

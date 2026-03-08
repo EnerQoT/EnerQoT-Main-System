@@ -4,7 +4,7 @@ import random
 import sys
 
 # Configuration
-API_URL = "http://127.0.0.1:5000/sensor-data"
+API_URL = "http://localhost:5000/sensor-data"
 DEVICE_ID = "sensor_001"
 
 def generate_normal_data():

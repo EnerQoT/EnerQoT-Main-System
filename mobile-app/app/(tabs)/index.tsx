@@ -29,11 +29,10 @@ export default function Home() {
         if (!isPowerOn) return; // Don't fetch if power is off
 
         try {
-            // const result = await getLatestStatus();
-            // if (result && result.data) {
-            //    setData(result);
-            // }
-            return; // Stop test requests until real device ID is available
+            const result = await getLatestStatus('testdayve');
+            if (result && result.data) {
+               setData(result);
+            }
         } catch (e) {
             console.log("Error fetching data", e);
         }

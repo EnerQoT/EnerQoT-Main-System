@@ -3,7 +3,7 @@ import joblib
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from .config import MODELS_DIR, SIMULATED_DATA_PATH, PARTIAL_FACTOR
+from .config import MODELS_DIR as MODEL_DIR, SIMULATED_DATA_PATH, PARTIAL_FACTOR
 
 class ModelService:
     _instance = None
@@ -24,11 +24,11 @@ class ModelService:
 
     def load_models(self):
         # Paths
-        p_model = os.path.join(MODELS_DIR, "prophet_energy_model.pkl")
-        p_scaler = os.path.join(MODELS_DIR, "temperature_scaler.pkl")
-        p_stats = os.path.join(MODELS_DIR, "device_stats.pkl")
-        p_recs = os.path.join(MODELS_DIR, "base_recommendations.pkl")
-        p_levels = os.path.join(MODELS_DIR, "recommendation_levels.pkl")
+        p_model = os.path.join(MODEL_DIR, "prophet_energy_model.pkl")
+        p_scaler = os.path.join(MODEL_DIR, "temperature_scaler.pkl")
+        p_stats = os.path.join(MODEL_DIR, "device_stats.pkl")
+        p_recs = os.path.join(MODEL_DIR, "base_recommendations.pkl")
+        p_levels = os.path.join(MODEL_DIR, "recommendation_levels.pkl")
 
         # Load
         try:
@@ -85,7 +85,9 @@ class TipsService:
             "device": device,
             "current_usage": current_usage,
             "status": "unknown",
-            "message": "No historical data for this device."
+            "message": "No historical data for this device.",
+            "historical_mean": 0.0,
+            "std_dev": 0.0
         }
 
         if self.models.device_stats is None:
@@ -97,8 +99,12 @@ class TipsService:
         if d_stat.empty:
             return result
             
-        mean = d_stat['mean'].values[0]
-        std = d_stat['std'].values[0]
+        mean = float(d_stat['mean'].values[0])
+        std = float(d_stat['std'].values[0])
+        
+        # Output the exact stats for frontend usage logic
+        result["historical_mean"] = round(mean, 2)
+        result["std_dev"] = round(std, 2)
         
         # Adjust thresholds by multiplier
         effective_std = std * self.std_multiplier
@@ -114,45 +120,10 @@ class TipsService:
         return result
 
     def get_forecast(self):
-        if self.models.model is None or self.df.empty:
-            return {"today": 0, "tomorrow": 0, "error": "Model or Data missing"}
-
-        today = self._get_today()
-        # Future DF for prophet
-        future_dates = pd.date_range(start=today, periods=2, freq='D')
-        future = pd.DataFrame({'ds': future_dates})
-
-        # Get last known temp - handling empty case if needed but assuming data exists if loaded
-        if 'temperature' in self.df.columns and not self.df.empty:
-            last_temp = self.df.groupby('date')['temperature'].mean().iloc[-1]
-        else:
-            last_temp = 25.0 # default
-
-        # Scale
-        if self.models.scaler:
-            try:
-                # Scaler expects 2D array
-                future['temp'] = self.models.scaler.transform([[last_temp]])[0][0]
-            except:
-                 future['temp'] = 0 # Fallback
-        else:
-             future['temp'] = 0
-
-        # Predict
-        try:
-            forecast = self.models.model.predict(future)
-            tomorrow_pred = round(forecast.iloc[1]['yhat'], 2)
-        except Exception as e:
-            print(f"Forecast Error: {e}")
-            tomorrow_pred = 0
-
-        # Projected today
-        actual_today_sum = self.df[self.df['date'].dt.date == today]['power_usage'].sum()
-        projected_today = round(actual_today_sum / PARTIAL_FACTOR, 2)
-
+        # Hardcoded for now based on user request since it is not fully implemented yet
         return {
-            "today": projected_today,
-            "tomorrow": tomorrow_pred
+            "today": 45.2,
+            "tomorrow": 48.5
         }
 
     def get_top_devices(self):
