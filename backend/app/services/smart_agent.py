@@ -125,7 +125,33 @@ class SmartAgent:
         return f"WARNING: {reason}"
 
     def _send_mqtt_command(self, device_id, command):
-        print(f"[SMART AGENT] >> MQTT PUB: topic=devices/{device_id}/control, payload={command}")
+        """Send ON/OFF command to the physical relay device via HTTP (non-blocking)."""
+        import threading, urllib.request, urllib.error, json as _json
+
+        RELAY_URL = "http://13.60.180.169:5000/relay"
+
+        def _fire():
+            payload = _json.dumps({"command": command}).encode("utf-8")
+            req = urllib.request.Request(
+                RELAY_URL,
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=8) as resp:
+                    body = resp.read().decode("utf-8", errors="replace")
+                    print(f"[RELAY] ✅ Command={command} device={device_id} → HTTP {resp.status}: {body}")
+            except urllib.error.HTTPError as e:
+                body = e.read().decode("utf-8", errors="replace")
+                print(f"[RELAY] ❌ HTTPError {e.code} for command={command}: {body}")
+            except Exception as e:
+                print(f"[RELAY] ❌ Failed to reach relay for command={command}: {e}")
+
+        print(f"[RELAY] 🔄 Sending command={command} to device={device_id} → {RELAY_URL}")
+        t = threading.Thread(target=_fire, daemon=True)
+        t.start()
+
 
     def _send_notification(self, device_id, message):
         print(f"[SMART AGENT] >> NOTIFICATION: Device {device_id}: {message}")
