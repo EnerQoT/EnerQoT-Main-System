@@ -225,7 +225,14 @@ export default function Monitor() {
             const result = await getLatestStatus('test_device_01');
             if (result && result.data) {
                 if (localLastProcessedTimestampRef.current && result.timestamp === localLastProcessedTimestampRef.current) return;
-                if (!isPowerOnRef.current) setIsPowerOn(true);
+
+                // Sync app power state with physical relay
+                if (result.relay_status === "ON" && !isPowerOnRef.current) {
+                    setIsPowerOn(true);
+                } else if (result.relay_status === "OFF" && isPowerOnRef.current) {
+                    setIsPowerOn(false);
+                }
+
                 setLastKnownTimestamp(result.timestamp);
                 localLastProcessedTimestampRef.current = result.timestamp;
                 setData(result);
