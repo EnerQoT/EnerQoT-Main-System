@@ -45,3 +45,23 @@ export const getAllDevices = async (): Promise<Device[]> => {
         return [];
     }
 };
+
+export interface AnomalyLog {
+    _id: string;
+    device_id: string;
+    timestamp: string;
+    severity: 'CRITICAL' | 'WARNING' | 'NORMAL';
+    anomaly_score: number;
+    action_taken: string;
+    features: number[][];
+}
+
+export const getDeviceAnomalies = async (deviceId: string, days: number = 7): Promise<AnomalyLog[]> => {
+    try {
+        const response = await api.get(`/anomalies/${deviceId}`, { params: { days } });
+        return response.data.anomalies;
+    } catch (error) {
+        console.error(`Error fetching anomalies for ${deviceId}:`, error);
+        return [];
+    }
+};

@@ -7,7 +7,15 @@ export default function Dashboard() {
     const [stats, setStats] = useState<DashboardStats | null>(null);
 
     useEffect(() => {
+        // Initial fetch
         getDashboardStats().then(setStats);
+
+        // Poll every 2 seconds
+        const interval = setInterval(() => {
+            getDashboardStats().then(setStats);
+        }, 2000);
+
+        return () => clearInterval(interval);
     }, []);
 
     // Dummy chart data

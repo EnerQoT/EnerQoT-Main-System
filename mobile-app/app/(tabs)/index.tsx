@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ImageBackground, Modal } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ImageBackground, Modal, Alert, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getLatestStatus, sendFeedback } from '../../services/api';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -10,13 +10,32 @@ export default function Home() {
     const [data, setData] = useState<any>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
+    const [shutdownCountdown, setShutdownCountdown] = useState<number | null>(null);
+    const [deviceOffline, setDeviceOffline] = useState(false);
     const router = useRouter();
-    const { isPowerOn } = usePower();
+    const { isPowerOn, setIsPowerOn, lastKnownTimestamp, setLastKnownTimestamp, isAutoShutdownEnabled, setIsAutoShutdownEnabled, turnOffPower } = usePower();
+
+    const isPowerOnRef = useRef(isPowerOn);
+    const lastTimestampRef = useRef(lastKnownTimestamp);
+    const isAutoShutdownEnabledRef = useRef(isAutoShutdownEnabled);
+    const lastDataReceivedAtRef = useRef<number>(Date.now());  // wall-clock ms
+
+    useEffect(() => {
+        isPowerOnRef.current = isPowerOn;
+    }, [isPowerOn]);
+
+    useEffect(() => {
+        lastTimestampRef.current = lastKnownTimestamp;
+    }, [lastKnownTimestamp]);
+
+    useEffect(() => {
+        isAutoShutdownEnabledRef.current = isAutoShutdownEnabled;
+    }, [isAutoShutdownEnabled]);
 
     const handleFeedback = async (correctLabel: number) => {
         if (!data) return;
         try {
-            await sendFeedback(data.device_id || 'testdayve', correctLabel);
+            await sendFeedback(data.device_id || 'test_device_01', correctLabel);
             setShowMenu(false);
             alert("Feedback Sent! Model is learning...");
         } catch (error) {
@@ -26,22 +45,77 @@ export default function Home() {
     };
 
     const fetchData = async () => {
-        if (!isPowerOn) return; // Don't fetch if power is off
-
         try {
-            // const result = await getLatestStatus();
-            // if (result && result.data) {
-            //    setData(result);
-            // }
-            return; // Stop test requests until real device ID is available
+            const result = await getLatestStatus('test_device_01');
+            if (result && result.data) {
+                if (lastTimestampRef.current && result.timestamp && result.timestamp === lastTimestampRef.current) {
+                    return;
+                }
+
+                // Sync app power state with physical relay
+                if (result.relay_status === "ON" && !isPowerOnRef.current) {
+                    setIsPowerOn(true);
+                } else if (result.relay_status === "OFF" && isPowerOnRef.current) {
+                    setIsPowerOn(false);
+                }
+
+                setLastKnownTimestamp(result.timestamp);
+                setData(result);
+
+                // Update wall-clock of last actual new data
+                lastDataReceivedAtRef.current = Date.now();
+                setDeviceOffline(false);
+
+                if (result.severity === "CRITICAL") {
+                    if (isAutoShutdownEnabledRef.current) {
+                        setShutdownCountdown(prev => prev === null ? 5 : prev);
+                    } else {
+                        Alert.alert(
+                            "EnerQoT Agent Warning",
+                            "Critical grid anomaly detected! Auto-shutdown is disabled. Please verify metrics.",
+                            [{ text: "Dismiss" }]
+                        );
+                    }
+                }
+            }
         } catch (e) {
             console.log("Error fetching data", e);
         }
     };
 
+    // Auto-shutdown Countdown Timer Logic
     useEffect(() => {
-        if (!isPowerOn) return; // Don't poll if power is off
+        let interval: NodeJS.Timeout;
+        if (shutdownCountdown !== null && shutdownCountdown > 0) {
+            interval = setInterval(() => {
+                setShutdownCountdown((prev) => (prev !== null && prev > 0 ? prev - 1 : 0));
+            }, 1000);
+        } else if (shutdownCountdown === 0) {
+            // Reached zero, execute power down
+            turnOffPower();
+            setShutdownCountdown(null);
+        }
+        return () => clearInterval(interval);
+    }, [shutdownCountdown, turnOffPower]);
 
+    // 30-second inactivity watchdog — marks device offline if no new data
+    useEffect(() => {
+        const watchdog = setInterval(() => {
+            const elapsed = Date.now() - lastDataReceivedAtRef.current;
+            if (elapsed > 30000 && isPowerOnRef.current) {
+                setDeviceOffline(true);
+            }
+        }, 5000);
+        return () => clearInterval(watchdog);
+    }, []);
+
+    // Constant background polling loop
+    useEffect(() => {
+        if (!isPowerOn) {
+            setData(null);
+            setDeviceOffline(false);
+            lastDataReceivedAtRef.current = Date.now(); // reset timer when manually turned off
+        }
         const interval = setInterval(fetchData, 2000);
         fetchData();
         return () => clearInterval(interval);
@@ -82,7 +156,7 @@ export default function Home() {
                     showsVerticalScrollIndicator={false}
                 >
                     {/* Status Card */}
-                    {!isPowerOn ? (
+                    {!isPowerOn || deviceOffline ? (
                         <View className="w-full rounded-3xl p-6 shadow-xl mb-6 bg-slate-700">
                             <View className="flex-row justify-between items-start">
                                 <View>
@@ -90,18 +164,19 @@ export default function Home() {
                                         Current Status
                                     </Text>
                                     <Text className="text-white text-4xl font-black tracking-tighter">
-                                        OFFLINE
+                                        {deviceOffline && isPowerOn ? 'OFFLINE' : 'OFF'}
                                     </Text>
                                 </View>
                                 <View className="bg-white/20 p-3 rounded-2xl">
                                     <FontAwesome name="power-off" size={24} color="white" />
                                 </View>
                             </View>
-
                             <View className="mt-6 bg-black/10 rounded-xl p-3 flex-row items-center">
-                                <FontAwesome name="info-circle" size={16} color="white" className="opacity-80" />
+                                <FontAwesome name="info-circle" size={16} color="white" />
                                 <Text className="text-white font-medium ml-2 opacity-90">
-                                    Turn on device to view current status
+                                    {deviceOffline && isPowerOn
+                                        ? 'No data received for 30s — device may be off or disconnected'
+                                        : 'Turn on device to view current status'}
                                 </Text>
                             </View>
                         </View>
@@ -140,6 +215,20 @@ export default function Home() {
 
                     {/* Power Control Button */}
                     <PowerToggleButton />
+
+                    {/* Agent Settings */}
+                    <View className="bg-slate-800/80 rounded-2xl p-4 mb-6 border border-white/5 flex-row justify-between items-center shadow-lg">
+                        <View className="flex-1 mr-4">
+                            <Text className="text-white font-bold text-base mb-1">Autonomous Agent</Text>
+                            <Text className="text-slate-400 text-xs">Allow mobile agent to automatically disconnect power during CRITICAL anomalies.</Text>
+                        </View>
+                        <Switch
+                            value={isAutoShutdownEnabled}
+                            onValueChange={setIsAutoShutdownEnabled}
+                            trackColor={{ false: "#334155", true: "#0ea5e9" }}
+                            thumbColor={isAutoShutdownEnabled ? "#ffffff" : "#94a3b8"}
+                        />
+                    </View>
 
                     {/* Quick Metrics */}
                     <Text className="text-white font-bold text-lg mb-4 ml-1">Quick Overview</Text>
@@ -264,6 +353,33 @@ export default function Home() {
                         </TouchableOpacity>
                     </View>
                 </TouchableOpacity>
+            </Modal>
+
+            {/* Autonomous Shutdown Countdown Modal */}
+            <Modal
+                visible={shutdownCountdown !== null}
+                transparent={true}
+                animationType="fade"
+            >
+                <View className="flex-1 bg-rose-600/95 justify-center items-center px-6">
+                    <FontAwesome name="warning" size={64} color="white" className="mb-6" />
+                    <Text className="text-white font-black text-3xl mb-2 text-center uppercase tracking-wider">Emergency Shutdown</Text>
+                    <Text className="text-white/80 font-bold text-lg text-center mb-10 px-4">
+                        Critical grid anomaly detected! Terminating device power to protect local infrastructure.
+                    </Text>
+
+                    <View className="bg-black/30 w-48 h-48 rounded-full justify-center items-center mb-12 border-4 border-white">
+                        <Text className="text-white font-black text-8xl">{shutdownCountdown}</Text>
+                        <Text className="text-white/80 font-bold text-sm tracking-widest mt-2">SECONDS</Text>
+                    </View>
+
+                    <TouchableOpacity
+                        onPress={() => setShutdownCountdown(null)}
+                        className="bg-white px-10 py-5 rounded-full shadow-2xl active:opacity-80"
+                    >
+                        <Text className="text-rose-600 font-extrabold text-xl uppercase tracking-widest">Cancel Shutdown</Text>
+                    </TouchableOpacity>
+                </View>
             </Modal>
         </SafeAreaView>
     );
