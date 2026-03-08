@@ -42,5 +42,7 @@ numpy
 joblib
 scikit-learn
 prophet
+firebase-admin
+
 
 groq>=1.0.0
