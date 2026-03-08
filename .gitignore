@@ -83,5 +83,9 @@ tmp/
 temp/
 *.tmp
 
+<<<<<<< Updated upstream
 firebase_credentials.json
+=======
+
+>>>>>>> Stashed changes
 firebase_bridge.py
