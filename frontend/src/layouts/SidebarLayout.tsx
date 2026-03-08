@@ -1,6 +1,5 @@
-import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Server, AlertTriangle, Settings, Zap } from 'lucide-react';
+import { LayoutDashboard, Server, AlertTriangle, Settings, Zap, Lightbulb } from 'lucide-react';
 
 export default function SidebarLayout({ children }: { children: React.ReactNode }) {
     return (
@@ -63,6 +62,19 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                     >
                         <Settings className="w-5 h-5 mr-3" />
                         Settings
+                    </NavLink>
+
+                    <NavLink
+                        to="/tips"
+                        className={({ isActive }) =>
+                            `flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${isActive
+                                ? 'bg-indigo-50 text-indigo-700'
+                                : 'text-gray-700 hover:bg-gray-100'
+                            }`
+                        }
+                    >
+                        <Lightbulb className="w-5 h-5 mr-3" />
+                        Tips & Insights
                     </NavLink>
                 </nav>
             </aside>

@@ -432,7 +432,6 @@ class AnomalyService:
             enriched_devices.append(d)
 
         return enriched_devices
-
     def get_historical_data(self, device_id, time_range='1h'):
         """Get historical sensor data based on time range."""
         if not self.use_db:
