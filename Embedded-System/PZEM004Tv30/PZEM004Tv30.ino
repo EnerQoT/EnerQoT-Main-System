@@ -4,15 +4,25 @@
 #define PZEM_RX_PIN 21
 #define PZEM_TX_PIN 20
 
+const int relay = 5;
+
 // Initialize PZEM sensor
 PZEM004Tv30 pzem(Serial0, PZEM_RX_PIN, PZEM_TX_PIN);
 
+
+
 void setup() {
+  pinMode(relay, OUTPUT);
   Serial.begin(115200);
+  pinMode(relay, OUTPUT);
+  digitalWrite(relay, LOW);
 }
 
 void loop() {
   // Read all values
+
+  
+
   float voltage = pzem.voltage();
   float current = pzem.current();
   float power = pzem.power();
