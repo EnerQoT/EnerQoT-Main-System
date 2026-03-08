@@ -23,7 +23,8 @@ def sensor_data():
         "current": float(data["current"]),
         "frequency": float(data["frequency"]),
         "power_factor": float(data["power_factor"]),
-        "temperature": float(data["temperature"])
+        "temperature": float(data["temperature"]),
+        "relay_status": data.get("relay_status", "ON")
     }
 
     result = service.process(data["device_id"], payload)

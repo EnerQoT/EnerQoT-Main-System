@@ -51,7 +51,14 @@ export default function Home() {
                 if (lastTimestampRef.current && result.timestamp && result.timestamp === lastTimestampRef.current) {
                     return;
                 }
-                if (!isPowerOnRef.current) setIsPowerOn(true);
+
+                // Sync app power state with physical relay
+                if (result.relay_status === "ON" && !isPowerOnRef.current) {
+                    setIsPowerOn(true);
+                } else if (result.relay_status === "OFF" && isPowerOnRef.current) {
+                    setIsPowerOn(false);
+                }
+
                 setLastKnownTimestamp(result.timestamp);
                 setData(result);
 

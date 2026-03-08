@@ -175,7 +175,8 @@ class AnomalyService:
             "rl_action": rl_action,
             "severity": severity,
             "scoring_mode": scoring_mode,
-            "action": action_taken
+            "action": action_taken,
+            "relay_status": payload.get("relay_status", "ON")
         }
         if anomaly_id:
             result["anomaly_id"] = anomaly_id
