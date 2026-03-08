@@ -9,6 +9,13 @@ export default function Menu() {
 
     const menuItems = [
         {
+            title: 'Add New Device',
+            icon: 'plus',
+            color: '#22c55e', // distinct green
+            route: '/add-device',
+            description: 'Pair a sensor'
+        },
+        {
             title: 'Profile',
             icon: 'user',
             color: '#3b82f6',

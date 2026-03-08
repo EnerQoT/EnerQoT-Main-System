@@ -38,6 +38,15 @@ def create_app(config_name='development'):
     app.register_blueprint(tips_bp, url_prefix='/api/tips')
 
     
+    from app.api.routes.sensor_health_routes import sensor_health_bp
+    app.register_blueprint(sensor_health_bp)
+
+    from app.api.routes.dashboard_routes import dashboard_bp
+    app.register_blueprint(dashboard_bp)    
+
+    from app.api.routes.analysis_routes import analysis_bp
+    app.register_blueprint(analysis_bp)
+    
     # Initialize extensions
     # db.init_app(app)
     # migrate.init_app(app, db)
