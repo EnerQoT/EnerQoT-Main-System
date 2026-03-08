@@ -157,3 +157,35 @@ class Device:
             "status": "active",
             "created_at": datetime.now(timezone.utc)
         }
+
+
+class DailyUsage:
+    """Daily energy usage documentation model"""
+    
+    @staticmethod
+    def create(device_id, date, total_kwh, cost=0.0):
+        """Create a daily usage document"""
+        return {
+            "device_id": device_id,
+            "date": date,
+            "total_kwh": float(total_kwh),
+            "cost": float(cost),
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        }
+
+
+class Tip:
+    """Energy saving tip model"""
+    
+    @staticmethod
+    def create(device_id, title, description, category="general"):
+        """Create a tip document"""
+        return {
+            "device_id": device_id,
+            "title": title,
+            "description": description,
+            "category": category,
+            "created_at": datetime.now(timezone.utc),
+            "is_active": True
+        }

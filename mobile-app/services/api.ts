@@ -1,8 +1,12 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 
-// For Physical Device Testing (LAN IP):
-const BASE_URL = 'http://192.168.1.58:5000';
+// For Development and Testing:
+// - Expo Go on a physical device: uses the host machine's LAN IP (192.168.1.92)
+// - Android emulator: use 10.0.2.2
+// - iOS simulator / web: use localhost
+// When testing on physical device with Expo Go, LAN IP is required.
+const BASE_URL = 'http://192.168.1.92:5000';
 
 const api = axios.create({
     baseURL: BASE_URL,
@@ -11,9 +15,7 @@ const api = axios.create({
     },
 });
 
-// ---------------------------------------------------------------
-// Anomaly & Status
-// ---------------------------------------------------------------
+// Existing APIs
 export const getLatestStatus = async (deviceId: string) => {
     try {
         const response = await api.get(`/status?device_id=${deviceId}`);
@@ -24,81 +26,21 @@ export const getLatestStatus = async (deviceId: string) => {
     }
 };
 
-export const sendDeviceCommand = async (deviceId: string, command: "ON" | "OFF") => {
-    try {
-        const response = await api.post('/device/control', {
-            device_id: deviceId,
-            command: command
-        });
-        return response.data;
-    } catch (error: any) {
-        console.error("Error sending device command:", error.message);
-        return null;
-    }
-};
-
-// ---------------------------------------------------------------
-// Feedback (DQN Online Learning)
-// ---------------------------------------------------------------
-
-/**
- * Submit feedback from the Notifications screen.
- * Maps to the new /feedback/notification endpoint which
- * triggers DQN online learning and updates the notification record.
- *
- * @param notificationId  MongoDB _id of the notification
- * @param deviceId        Device that generated the anomaly
- * @param feedbackType    "confirm" (real anomaly) | "false_alarm"
- * @param correctSeverity What the severity SHOULD have been: "NORMAL" | "WARNING" | "CRITICAL"
- *                        Required when feedbackType is "false_alarm"
- */
-export const sendNotificationFeedback = async (
-    notificationId: string,
-    deviceId: string,
-    feedbackType: 'confirm' | 'false_alarm',
-    correctSeverity?: 'NORMAL' | 'WARNING' | 'CRITICAL'
-) => {
-    try {
-        const response = await api.post('/feedback/notification', {
-            notification_id: notificationId,
-            device_id: deviceId,
-            feedback_type: feedbackType,
-            ...(correctSeverity ? { correct_severity: correctSeverity } : {})
-        });
-        return response.data;
-    } catch (error: any) {
-        console.error("Notification Feedback Error:", error.message);
-        return null;
-    }
-};
-
-/**
- * Legacy feedback endpoint — for monitor tab or direct feedback without notification_id.
- * Pass correctSeverity when feedback_type is 'false_alarm' for graduated reward shaping.
- */
-export const sendFeedback = async (
-    deviceId: string,
-    correctLabel: number,
-    feedbackType?: 'confirm' | 'false_alarm',
-    correctSeverity?: 'NORMAL' | 'WARNING' | 'CRITICAL'
-) => {
+export const sendFeedback = async (deviceId: string, correctLabel: number) => {
     try {
         const response = await api.post('/feedback', {
             device_id: deviceId,
-            correct_label: correctLabel,
-            feedback_type: feedbackType,
-            ...(correctSeverity ? { correct_severity: correctSeverity } : {})
+            correct_label: correctLabel
         });
         return response.data;
-    } catch (error: any) {
-        console.error("Feedback Error:", error.message);
+    } catch (error) {
+        console.error("Feedback Error:", error);
         return null;
     }
 };
 
-// ---------------------------------------------------------------
-// Historical & Notifications
-// ---------------------------------------------------------------
+// New APIs for real data integration
+
 export const getHistoricalData = async (deviceId: string, range: string) => {
     try {
         const response = await api.get(`/history/${deviceId}?range=${range}`);
@@ -109,15 +51,9 @@ export const getHistoricalData = async (deviceId: string, range: string) => {
     }
 };
 
-export const getNotifications = async (
-    deviceId: string,
-    severity: string = 'all',
-    limit: number = 50
-) => {
+export const getNotifications = async (deviceId: string, severity: string = 'all', limit: number = 50) => {
     try {
-        const response = await api.get(
-            `/notifications/${deviceId}?severity=${severity}&limit=${limit}`
-        );
+        const response = await api.get(`/notifications/${deviceId}?severity=${severity}&limit=${limit}`);
         return response.data;
     } catch (error) {
         console.error("Error fetching notifications:", error);
@@ -155,16 +91,6 @@ export const getDeviceHealth = async (deviceId: string) => {
     }
 };
 
-export const getAgentStats = async () => {
-    try {
-        const response = await api.get('/agent-stats');
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching agent stats:", error);
-        return null;
-    }
-};
-
 export const getEnergyTips = async () => {
     try {
         const response = await api.get('/api/tips/all');
@@ -181,6 +107,60 @@ export const getReports = async (deviceId: string, period: string = 'daily') => 
         return response.data;
     } catch (error) {
         console.error("Error fetching reports:", error);
+        return null;
+    }
+};
+
+export interface PzemData {
+  current: number;
+  energy: number;
+  frequency: number;
+  pf: number;
+  power: number;
+  voltage: number;
+}
+
+export interface TelemetryResponse {
+  status: string;
+  analysis: {
+      device: string;
+      current_usage: number;
+      status: string;
+      message: string;
+      historical_mean: number;
+      std_dev: number;
+  };
+}
+
+export const postTelemetry = async (device: string, usage: number): Promise<TelemetryResponse | null> => {
+    try {
+        console.log(`[Telemetry] Sending: device=${device}, usage=${usage}`);
+        const response = await api.post('/api/tips/telemetry', { device, usage });
+        console.log(`[Telemetry] Response:`, response.data);
+        return response.data;
+    } catch (error: any) {
+        console.error('Error posting telemetry data:', error.message || error);
+        return null;
+    }
+};
+
+export const fetchLatestPzemData = async (): Promise<PzemData | null> => {
+    try {
+        const response = await axios.get('https://rp-project-51690-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_readings.json?orderBy="$key"&limitToLast=1');
+        const data = response.data;
+        
+        if (data) {
+            const keys = Object.keys(data);
+            if (keys.length > 0) {
+                const latestReading = data[keys[0]];
+                if (latestReading && latestReading.pzem) {
+                    return latestReading.pzem as PzemData;
+                }
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error('Error fetching from Firebase:', error);
         return null;
     }
 };
