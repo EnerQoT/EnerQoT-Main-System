@@ -159,7 +159,7 @@ export const postTelemetry = async (device: string, usage: number): Promise<Tele
 
 export const fetchLatestPzemData = async (): Promise<PzemData | null> => {
     try {
-        const response = await axios.get('https://rp-project-51690-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_readings.json?orderBy="$key"&limitToLast=1');
+        const response = await axios.get('https://rp-project-51690-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_data.json?orderBy="$key"&limitToLast=1');
         const data = response.data;
 
         if (data) {
