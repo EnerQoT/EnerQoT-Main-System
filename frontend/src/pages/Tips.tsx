@@ -207,14 +207,14 @@ export default function Tips() {
                          <div className="w-full flex justify-between items-center mb-10 z-10 space-x-8">
                              <div className="text-center flex-1">
                                  <p className="text-xs uppercase font-bold text-gray-400 mb-2 tracking-wider">Historical Mean</p>
-                                 <div className="text-3xl font-bold text-gray-700">{meanDailyUsage.toFixed(4)} <span className="text-lg font-medium text-gray-400">kWh</span></div>
+                                 <div className="text-3xl font-bold text-gray-700">{meanDailyUsage.toFixed(2)} <span className="text-lg font-medium text-gray-400">kWh</span></div>
                              </div>
                              
                              <div className="h-16 w-px bg-gray-200 hidden sm:block"></div>
                              
                              <div className="text-center flex-1">
                                  <p className="text-xs uppercase font-bold text-gray-400 mb-2 tracking-wider">Today's Usage</p>
-                                 <div className="text-3xl font-bold text-gray-900">{selectedUsage.toFixed(4)} <span className="text-lg font-medium text-gray-400">kWh</span></div>
+                                 <div className="text-3xl font-bold text-gray-900">{selectedUsage.toFixed(2)} <span className="text-lg font-medium text-gray-400">kWh</span></div>
                              </div>
                          </div>
                          
@@ -235,7 +235,7 @@ export default function Tips() {
                                    </div>
                               </div>
                               <div className={`text-4xl font-extrabold tracking-tight ${isSaved ? 'text-green-700' : 'text-red-700'}`}>
-                                  {Math.abs(usageDifference).toFixed(4)} <span className="text-lg font-bold opacity-80">kWh</span>
+                                  {Math.abs(usageDifference).toFixed(2)} <span className="text-lg font-bold opacity-80">kWh</span>
                               </div>
                          </div>
                     </div>
@@ -275,7 +275,7 @@ function StatCard({ icon, label, value, unit }: { icon: React.ReactNode, label: 
             </div>
             <div className="flex items-end space-x-1">
                  <span className="text-2xl font-black text-gray-800 tracking-tight">
-                     {value !== undefined && value !== null ? (Number.isInteger(value) ? value : value.toFixed(4)) : 'N/A'}
+                     {value !== undefined && value !== null ? (Number.isInteger(value) ? value : value.toFixed(2)) : 'N/A'}
                  </span>
                  {unit && <span className="text-sm font-semibold text-gray-500 mb-1">{unit}</span>}
             </div>

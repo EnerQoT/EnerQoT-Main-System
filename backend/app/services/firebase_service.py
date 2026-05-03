@@ -81,4 +81,26 @@ class FirebaseService:
             print(f" Error fetching data from Firebase: {e}")
             return None
 
+    def get_first_reading_of_day(self):
+        """
+        Fetches the first sensor data entry for the current day.
+        Useful for determining the energy baseline at midnight.
+        """
+        try:
+            from datetime import datetime
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+            
+            ref = db.reference('/sensor_data')
+            # Query for the first item after midnight
+            snapshot = ref.order_by_child('timestamp').start_at(today_start).limit_to_first(1).get()
+            
+            if not snapshot:
+                return None
+                
+            key = list(snapshot.keys())[0]
+            return snapshot[key]
+        except Exception as e:
+            print(f" Error fetching first reading of day: {e}")
+            return None
+
 firebase_service = FirebaseService()

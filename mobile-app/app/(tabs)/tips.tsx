@@ -241,7 +241,7 @@ export default function Tips() {
                                  <View className="items-center flex-1">
                                      <Text className="text-[10px] uppercase font-bold text-slate-400 mb-1 tracking-wider text-center">Historical Mean</Text>
                                      <View className="flex-row items-baseline align-bottom">
-                                        <Text className="text-3xl font-bold text-white mr-1">{meanDailyUsage.toFixed(4)}</Text>
+                                        <Text className="text-3xl font-bold text-white mr-1">{meanDailyUsage.toFixed(2)}</Text>
                                         <Text className="text-sm font-medium text-slate-400">kWh</Text>
                                      </View>
                                  </View>
@@ -251,7 +251,7 @@ export default function Tips() {
                                  <View className="items-center flex-1">
                                      <Text className="text-[10px] uppercase font-bold text-slate-400 mb-1 tracking-wider text-center">Today's Usage</Text>
                                      <View className="flex-row items-baseline align-bottom">
-                                        <Text className="text-3xl font-bold text-white mr-1">{selectedUsage.toFixed(4)}</Text>
+                                        <Text className="text-3xl font-bold text-white mr-1">{selectedUsage.toFixed(2)}</Text>
                                         <Text className="text-sm font-medium text-slate-400">kWh</Text>
                                      </View>
                                  </View>
@@ -277,7 +277,7 @@ export default function Tips() {
                                   </View>
                                   <View className="flex-row justify-end items-baseline align-bottom pr-2">
                                      <Text className={`text-4xl font-extrabold tracking-tight ${isSaved ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                         {Math.abs(usageDifference).toFixed(4)}
+                                         {Math.abs(usageDifference).toFixed(2)}
                                      </Text>
                                      <Text className={`text-sm font-bold opacity-80 ml-1 ${isSaved ? 'text-emerald-500' : 'text-rose-500'}`}>
                                          kWh
@@ -363,7 +363,7 @@ export default function Tips() {
                                                         <Text className={`text-[10px] font-bold uppercase tracking-wider ${levelText}`}>{rec.level}</Text>
                                                     </View>
                                                 </View>
-                                                <Text className="text-slate-400 text-xs font-medium mb-2">{rec.usage_kwh.toFixed(4)} kWh today</Text>
+                                                <Text className="text-slate-400 text-xs font-medium mb-2">{rec.usage_kwh.toFixed(2)} kWh today</Text>
                                                 <Text className="text-slate-300 text-sm leading-relaxed">{rec.recommendation}</Text>
                                             </View>
                                         </View>
@@ -390,7 +390,7 @@ const StatCard = ({ icon, iconColor, label, value, unit }: { icon: string, iconC
             </View>
             <View className="flex-row items-baseline align-bottom">
                  <Text className="text-3xl font-black text-white tracking-tight mr-1">
-                     {value !== undefined && value !== null ? (Number.isInteger(value) ? value : value.toFixed(4)) : '--'}
+                     {value !== undefined && value !== null ? (Number.isInteger(value) ? value : value.toFixed(2)) : '--'}
                  </Text>
                  {unit && <Text className="text-sm font-bold text-slate-400 mb-1">{unit}</Text>}
             </View>

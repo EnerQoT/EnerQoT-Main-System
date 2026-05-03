@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from .config import MODELS_DIR as MODEL_DIR, SIMULATED_DATA_PATH, PARTIAL_FACTOR
+from .firebase_service import firebase_service
 
 class ModelService:
     _instance = None
@@ -59,6 +60,10 @@ class TipsService:
         self.models = ModelService.get_instance()
         self.std_multiplier = 1.0
         
+        # Energy baseline cache for "reset to 0 at midnight" logic
+        self.midnight_energy_offset = 0.0
+        self.last_baseline_date = None
+        
         # In a real app, this would be a DB query. Here we load CSV once or per request.
         # Check if file exists to avoid crash
         if os.path.exists(SIMULATED_DATA_PATH):
@@ -80,10 +85,29 @@ class TipsService:
                 print(f"ERROR: Invalid value for std_multiplier: {value}")
 
     def analyze_current_usage(self, device, current_usage):
+        """
+        Analyzes usage and provides recommendations.
+        Restores today's usage to 0 at the start of each day by subtracting 
+         the energy recorded at midnight.
+        """
+        today = self._get_today()
+        
+        # 1. Update/Restore the daily baseline if needed
+        if self.last_baseline_date != today:
+            first_reading = firebase_service.get_first_reading_of_day()
+            if first_reading:
+                self.midnight_energy_offset = float(first_reading.get('pzem', {}).get('energy', 0.0))
+                self.last_baseline_date = today
+                print(f"INFO: Today's energy baseline reset to {self.midnight_energy_offset} kWh at {today}")
+
+        # 2. Subtract baseline to get actual usage today
+        # Ensure we don't go below 0 (in case of sensor reset or jitter)
+        actual_today_usage = max(0.0, current_usage - self.midnight_energy_offset)
+
         # Default response if no stats
         result = {
             "device": device,
-            "current_usage": current_usage,
+            "current_usage": round(actual_today_usage, 4), # Return the "Restored" value
             "status": "unknown",
             "message": "No historical data for this device.",
             "historical_mean": 0.0,
@@ -110,9 +134,9 @@ class TipsService:
         effective_std = std * self.std_multiplier
         high_threshold = mean + effective_std
         
-        if current_usage > high_threshold:
+        if actual_today_usage > high_threshold:
             result["status"] = "alert"
-            result["message"] = f"High usage detected! Exceeds {high_threshold:.2f} kWh."
+            result["message"] = f"High usage detected! Exceeds {high_threshold:.2f} kWh today."
         else:
             result["status"] = "normal"
             result["message"] = "Usage is within normal range."
