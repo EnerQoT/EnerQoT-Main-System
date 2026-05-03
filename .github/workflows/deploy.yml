@@ -45,8 +45,8 @@ jobs:
             ${{ secrets.FIREBASE_JSON }}
             EOF
             
-            # Create frontend production env from GitHub Secrets
-            cat << 'EOF' > frontend/.env.production
+            # Create frontend env from GitHub Secrets (used by Vite dev server)
+            cat << 'EOF' > frontend/.env.local
             ${{ secrets.FRONTEND_ENV }}
             EOF
             
