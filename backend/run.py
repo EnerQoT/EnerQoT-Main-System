@@ -2,8 +2,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from app import create_app
+from apscheduler.schedulers.background import BackgroundScheduler
+from daily_train_firebase import main as run_training
 
 app = create_app()
 
+# Initialize the scheduler
+scheduler = BackgroundScheduler()
+
+# Add the training job: Runs once a day (every 24 hours)
+# We use 'interval' here, but you can also use 'cron' for a specific time of day.
+scheduler.add_job(func=run_training, trigger="interval", hours=24)
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # Start the scheduler
+    scheduler.start()
+    print("Automated Daily Training Scheduler Started.")
+    
+    # Run the Flask app
+    # Note: use_reloader=False is used to prevent the scheduler from starting twice
+    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)

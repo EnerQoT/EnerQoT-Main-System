@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { getAllTipsData, fetchLatestSensorData, postTelemetry, type TipsData, type RealTimeSensorData, type TelemetryResponse } from '../services/tipsApi';
 import { TrendingDown, TrendingUp, Zap, Target, Activity, PlusCircle, Scale, Thermometer, Droplets, Wifi, Battery } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Tips() {
     const [data, setData] = useState<TipsData | null>(null);
@@ -89,17 +88,6 @@ export default function Tips() {
 
     const selectedDeviceName = Object.keys(data.top_devices)[0];
     
-    // Graph mock usage mapping logic left intact
-    const pastUsageData = [
-        { name: '6 Days Ago', usage: 40.5 },
-        { name: '5 Days Ago', usage: 38.2 },
-        { name: '4 Days Ago', usage: 49.3 },
-        { name: '3 Days Ago', usage: 47.1 },
-        { name: '2 Days Ago', usage: 42.8 },
-        { name: 'Yesterday', usage: 44.1 },
-        { name: 'Today', usage: 45.2 },
-    ];
-
     // Read Comparison Metrics From Backend Telemetry Response
     const selectedUsage = telemetry?.analysis?.current_usage || 4.85;
     const meanDailyUsage = telemetry?.analysis?.historical_mean || 5.0;
@@ -272,53 +260,6 @@ export default function Tips() {
                     </div>
                 </div>
 
-            {/* Bottom Row: Historical Graph */}
-            <div className="space-y-10 mt-8">
-                <h3 className="text-xl font-semibold text-gray-800 flex items-center">
-                    <TrendingDown className="w-5 h-5 mr-2 text-green-600" />
-                    Previous Usage
-                </h3>
-                <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
-                    <div className="h-80 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={pastUsageData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorUsage" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                                <XAxis 
-                                    dataKey="name" 
-                                    axisLine={false} 
-                                    tickLine={false} 
-                                    tick={{ fill: '#6b7280', fontSize: 12 }}
-                                    dy={10}
-                                />
-                                <YAxis 
-                                    axisLine={false} 
-                                    tickLine={false} 
-                                    tick={{ fill: '#6b7280', fontSize: 12 }}
-                                />
-                                <Tooltip 
-                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                                    itemStyle={{ color: '#4f46e5', fontWeight: 600 }}
-                                />
-                                <Area
-                                    type="monotone"
-                                    dataKey="usage"
-                                    stroke="#4f46e5"
-                                    strokeWidth={3}
-                                    fillOpacity={1}
-                                    fill="url(#colorUsage)"
-                                    activeDot={{ r: 6, strokeWidth: 0, fill: '#4f46e5' }}
-                                />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 }

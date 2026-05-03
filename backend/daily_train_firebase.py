@@ -173,12 +173,12 @@ def main():
     model.add_regressor('temp')
     
     train_df = daily_df[daily_df['ds'] < today]
-    if len(train_df) < 2:
+    if len(train_df) < 30:
         logger.warning("Insufficient historical data (ds < today). Including 'today' in training set for testing purposes.")
         train_df = daily_df
         
-    if len(train_df) < 2:
-        logger.warning("Still insufficient data to train Prophet model (needs at least 2 days). Exiting.")
+    if len(train_df) < 30:
+        logger.warning("Still insufficient data to train Prophet model (needs at least 30 days). Exiting.")
         return
 
     logger.info("Fitting Prophet model on historical data...")
@@ -196,10 +196,8 @@ def main():
     mae_baseline = mean_absolute_error(train_df['y'], baseline_predictions)
     rmse_baseline = np.sqrt(mean_squared_error(train_df['y'], baseline_predictions))
     
-    logger.info(f"In-Sample MAE:  {mae_train:.2f} kWh")
-    logger.info(f"In-Sample RMSE: {rmse_train:.2f} kWh")
-    logger.info(f"Baseline MAE:   {mae_baseline:.2f} kWh")
-    logger.info(f"Baseline RMSE:  {rmse_baseline:.2f} kWh")
+    logger.info(f"MAE:  {mae_train:.2f} kWh")
+    logger.info(f"RMSE: {rmse_train:.2f} kWh")
 
     is_better_than_baseline = mae_train < mae_baseline
     logger.info(f"Model beats baseline? {'Yes' if is_better_than_baseline else 'No'}")

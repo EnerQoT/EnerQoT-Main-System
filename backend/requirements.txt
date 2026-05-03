@@ -43,6 +43,7 @@ joblib
 scikit-learn
 prophet
 firebase-admin
+apscheduler
 
 
 groq>=1.0.0

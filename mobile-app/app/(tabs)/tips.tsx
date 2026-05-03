@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, RefreshControl, Dimensions, ImageBackground } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { LineChart } from 'react-native-chart-kit';
 import { getEnergyTips, fetchLatestSensorData, postTelemetry, RealTimeSensorData, TelemetryResponse } from '../../services/api';
 
 interface Recommendation {
@@ -111,9 +110,6 @@ export default function Tips() {
 
     const selectedDeviceName = Object.keys(tipsData.top_devices)[0];
     
-    // Graph mock usage data matching frontend AreaChart
-    const pastUsageDataPoints = [40.5, 38.2, 49.3, 47.1, 42.8, 44.1, 45.2];
-
     const selectedUsage = telemetry?.analysis?.current_usage || 4.85;
     const meanDailyUsage = telemetry?.analysis?.historical_mean || 5.0;
     const stdDev = telemetry?.analysis?.std_dev || 0.1;
@@ -311,65 +307,6 @@ export default function Tips() {
                             </View>
                         </View>
                     </View>
-
-                    {/* Bottom Row Equivalent: Historical Graph */}
-                    <View className="mb-4 mt-2">
-                        <View className="flex-row items-center mb-4">
-                            <FontAwesome name="history" size={18} color="#22c55e" style={{ marginRight: 8 }} />
-                            <Text className="text-lg font-bold text-white">Previous Usage</Text>
-                        </View>
-                        <View className="bg-slate-800/80 p-4 rounded-3xl shadow-lg border border-white/5">
-                            <LineChart
-                                data={{
-                                    labels: [], 
-                                    datasets: [
-                                        {
-                                            data: pastUsageDataPoints,
-                                            color: (opacity = 1) => `rgba(129, 140, 248, ${opacity})`, 
-                                            strokeWidth: 3
-                                        }
-                                    ]
-                                }}
-                                width={screenWidth - 72} 
-                                height={220}
-                                withDots={true}
-                                withInnerLines={true}
-                                withOuterLines={false}
-                                withVerticalLines={false}
-                                withHorizontalLines={true}
-                                chartConfig={{
-                                    backgroundColor: "transparent",
-                                    backgroundGradientFrom: "#1e293b",
-                                    backgroundGradientTo: "#1e293b",
-                                    decimalPlaces: 1,
-                                    color: (opacity = 1) => `rgba(148, 163, 184, 0.2)`,
-                                    labelColor: (opacity = 1) => `rgba(148, 163, 184, ${opacity})`, 
-                                    style: {
-                                        borderRadius: 16
-                                    },
-                                    propsForDots: {
-                                        r: "6",
-                                        strokeWidth: "0",
-                                        fill: "#818cf8"
-                                    },
-                                    propsForBackgroundLines: { strokeDasharray: "4", stroke: "#334155" }
-                                }}
-                                bezier
-                                style={{
-                                    marginVertical: 8,
-                                    borderRadius: 16
-                                }}
-                                formatYLabel={(y) => y}
-                                formatXLabel={(x) => ""} 
-                            />
-                            {/* Custom x-axis labels beneath to handle multiline or spacing elegantly */}
-                            <View className="flex-row justify-between px-2 mt-2">
-                                <Text className="text-xs text-slate-400 font-medium">6 Days</Text>
-                                <Text className="text-xs text-slate-400 font-medium">3 Days</Text>
-                                <Text className="text-xs text-slate-400 font-medium">Today</Text>
-                            </View>
-                        </View>
-                     </View>
 
                     {/* Top Devices Section */}
                     {tipsData?.top_devices && Object.keys(tipsData.top_devices).length > 0 && (
