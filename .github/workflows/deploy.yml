@@ -32,8 +32,14 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             
-            # Create a .env file from GitHub Secrets (if you have any environment variables)
-            # echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" > .env
+            # Create necessary config directories
+            mkdir -p backend/config
+            
+            # Create a .env file from GitHub Secrets
+            echo "${{ secrets.BACKEND_ENV }}" > backend/.env
+            
+            # Create Firebase credentials file from GitHub Secrets
+            echo "${{ secrets.FIREBASE_JSON }}" > backend/config/firebase_credentials.json
             
             # Rebuild and restart the Docker containers
             docker-compose down
