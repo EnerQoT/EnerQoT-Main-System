@@ -92,7 +92,7 @@ temp/
 *.tmp
 # Firebase
 backend/config/firebase_credentials.json
-Embedded-System/Firebase/*firebase-adminsdk*.json
+Embedded-System/
 *firebase-adminsdk*.json
 
-# Other
+# Other

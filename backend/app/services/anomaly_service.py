@@ -23,6 +23,7 @@ class AnomalyService:
         # Cache the last anomaly context per device for feedback linking
         # Stores: { device_id: { features, rl_action, iforest_score, dqn_confidence, combined_score, predicted_severity } }
         self.last_anomaly_context = {}
+        self.last_notification_time = {}
 
         # MongoDB collections
         self.use_db = is_db_connected()
@@ -31,9 +32,9 @@ class AnomalyService:
             self.anomalies = get_collection('anomalies')
             self.notifications = get_collection('notifications')
             self.user_feedback = get_collection('user_feedback')
-            print("✅ AnomalyService using MongoDB for persistence")
+            print("[OK] AnomalyService using MongoDB for persistence")
         else:
-            print("⚠️  AnomalyService running in-memory only (no database)")
+            print("[WARN] AnomalyService running in-memory only (no database)")
 
     # ------------------------------------------------------------------
     # Severity Classification
@@ -78,7 +79,7 @@ class AnomalyService:
                 )
                 self.sensor_readings.insert_one(reading)
             except Exception as e:
-                print(f"⚠️  DB Error (Sensor Write): {e}")
+                print(f"[WARN] DB Error: {e}")
 
         # 2. Update in-memory buffer
         if device_id not in self.buffers:
@@ -155,19 +156,27 @@ class AnomalyService:
                 result = self.anomalies.insert_one(anomaly)
                 anomaly_id = str(result.inserted_id)
 
-                # Create notification
-                title = f"{severity} Alert"
-                message = self._get_alert_message(severity, payload, score_result)
-                notification = Notification.create(
-                    device_id,
-                    severity,
-                    title,
-                    message,
-                    action_taken
-                )
-                self.notifications.insert_one(notification)
+                # Create notification with throttling (don't spam same severity within 5 mins)
+                now = datetime.now(timezone.utc)
+                throttle_key = f"{device_id}_{severity}"
+                last_time = self.last_notification_time.get(throttle_key)
+                
+                if last_time is None or (now - last_time) > timedelta(minutes=5):
+                    title = f"{severity} Alert"
+                    message = self._get_alert_message(severity, payload, score_result)
+                    notification = Notification.create(
+                        device_id,
+                        severity,
+                        title,
+                        message,
+                        action_taken
+                    )
+                    self.notifications.insert_one(notification)
+                    self.last_notification_time[throttle_key] = now
+                else:
+                    print(f"DEBUG: Throttling {severity} notification for {device_id}")
             except Exception as e:
-                print(f"⚠️  DB Error (Anomaly Write): {e}")
+                print(f"[WARN] DB Error (Anomaly Write): {e}")
 
         # 10. Prepare and cache result
         result = {
@@ -277,7 +286,7 @@ class AnomalyService:
                 )
                 self.user_feedback.insert_one(feedback_doc)
             except Exception as e:
-                print(f"⚠️  DB Error (Feedback Write): {e}")
+                print(f"[WARN] DB Error (Feedback Write): {e}")
 
         stats = self.agent.get_training_stats()
         return {
@@ -361,7 +370,7 @@ class AnomalyService:
 
                     return response
             except Exception as e:
-                print(f"⚠️  DB Error (Status Read): {e}")
+                print(f"[WARN] DB Error (Status Read): {e}")
 
         # Fallback to in-memory cache
         if device_id and device_id in self.latest_outputs:
@@ -534,6 +543,33 @@ class AnomalyService:
             {"$set": {"read": True}}
         )
         return result.modified_count > 0
+
+    def delete_notification(self, notification_id):
+        """Permanently delete a notification from database."""
+        if not self.use_db:
+            print("DEBUG: Cannot delete notification - No DB connection")
+            return False
+        try:
+            from bson import ObjectId
+            result = self.notifications.delete_one({"_id": ObjectId(notification_id)})
+            print(f"DEBUG: MongoDB delete_one result: {result.deleted_count}")
+            return result.deleted_count > 0
+        except Exception as e:
+            print(f"DEBUG: MongoDB delete error: {e}")
+            return False
+
+    def clear_notifications(self, device_id):
+        """Clear all notifications for a specific device."""
+        if not self.use_db:
+            print("DEBUG: Cannot clear notifications - No DB connection")
+            return False
+        try:
+            result = self.notifications.delete_many({"device_id": device_id})
+            print(f"DEBUG: MongoDB delete_many result: {result.deleted_count}")
+            return result.deleted_count > 0
+        except Exception as e:
+            print(f"DEBUG: MongoDB clear error: {e}")
+            return False
 
     def get_anomaly_history(self, device_id, days=7):
         """Get anomaly history for reports."""

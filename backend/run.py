@@ -6,14 +6,31 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from app import create_app
+from apscheduler.schedulers.background import BackgroundScheduler
+from daily_train_firebase import main as run_training
 
 app = create_app()
 
-if __name__ == "__main__":
-    # Ensure bridge is only started once when Flask reload is active
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug:
-        print("Starting Firebase Bridge as a background process...")
-        # Start the bridge so their logs show together in the same terminal
-        subprocess.Popen([sys.executable, "firebase_bridge.py"])
+# Initialize the scheduler
+scheduler = BackgroundScheduler()
 
+# Add the training job: Runs once a day (every 24 hours)
+# We use 'interval' here, but you can also use 'cron' for a specific time of day.
+scheduler.add_job(func=run_training, trigger="interval", hours=24)
+
+if __name__ == "__main__":
+    # Start the scheduler
+    scheduler.start()
+    print("Automated Daily Training Scheduler Started.")
+    
+    # Start the bridge only in the main thread (to avoid double execution with Flask reloader)
+    if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+        print("Starting Firebase Bridge as a background process...")
+        try:
+            subprocess.Popen([sys.executable, "firebase_bridge.py"])
+        except Exception as e:
+            print(f"Error starting Firebase Bridge: {e}")
+
+    # Run the Flask app
+    # host="0.0.0.0" allows access from the local network (important for the mobile app)
     app.run(host="0.0.0.0", port=5000, debug=True)

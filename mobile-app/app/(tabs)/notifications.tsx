@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { getNotifications, sendNotificationFeedback } from '../../services/api';
+import { getNotifications, sendNotificationFeedback, deleteNotification, clearNotifications } from '../../services/api';
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -233,9 +233,10 @@ interface CardProps {
     notif: NotificationItem;
     onConfirm: () => Promise<void>;
     onFalseAlarm: (sev: Severity) => Promise<void>;
+    onDelete: () => Promise<void>;
 }
 
-const NotificationCard = ({ notif, onConfirm, onFalseAlarm }: CardProps) => {
+const NotificationCard = ({ notif, onConfirm, onFalseAlarm, onDelete }: CardProps) => {
     const [menuStep, setMenuStep] = useState<MenuStep>(() => {
         if (notif.feedback_type === 'confirm') return 'done_confirm';
         if (notif.feedback_type === 'false_alarm') return 'done_alarm';
@@ -308,6 +309,14 @@ const NotificationCard = ({ notif, onConfirm, onFalseAlarm }: CardProps) => {
                                         <FontAwesome name="times" size={13} color="#64748b" />
                                     </TouchableOpacity>
                                 )}
+                                {/* Delete trash icon */}
+                                <TouchableOpacity
+                                    onPress={onDelete}
+                                    style={{ paddingLeft: 6, paddingVertical: 2 }}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                >
+                                    <FontAwesome name="trash-o" size={15} color="#64748b" />
+                                </TouchableOpacity>
                             </View>
                         </View>
 
@@ -394,6 +403,24 @@ export default function Notifications() {
         await sendNotificationFeedback(notif._id, notif.device_id ?? 'test_device_01', 'false_alarm', correctSeverity);
     };
 
+    const handleDelete = async (notif: NotificationItem) => {
+        try {
+            await deleteNotification(notif._id);
+            setNotifications(prev => prev.filter(n => n._id !== notif._id));
+        } catch (e) {
+            console.error('Delete error:', e);
+        }
+    };
+
+    const handleClearAll = async () => {
+        try {
+            await clearNotifications('test_device_01');
+            setNotifications([]);
+        } catch (e) {
+            console.error('Clear all error:', e);
+        }
+    };
+
     const filtered = notifications.filter(n => {
         if (filter === 'All') return true;
         return n.severity === filter.toUpperCase();
@@ -422,8 +449,11 @@ export default function Notifications() {
                                 {unread} unread alert{unread !== 1 ? 's' : ''}
                             </Text>
                         </View>
-                        <TouchableOpacity style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 7, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
-                            <Text style={{ color: '#60a5fa', fontSize: 12, fontWeight: '600' }}>Clear All</Text>
+                        <TouchableOpacity 
+                            onPress={handleClearAll}
+                            style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 7, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}
+                        >
+                            <Text style={{ color: '#f87171', fontSize: 12, fontWeight: '600' }}>Clear All</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -474,6 +504,7 @@ export default function Notifications() {
                                     notif={notif}
                                     onConfirm={() => handleConfirm(notif)}
                                     onFalseAlarm={(sev) => handleFalseAlarm(notif, sev)}
+                                    onDelete={() => handleDelete(notif)}
                                 />
                             ))
                         )}

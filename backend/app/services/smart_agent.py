@@ -39,14 +39,14 @@ class SmartAgent:
                 self.rl_scaler = joblib.load(RL_SCALER_PATH)
                 rl_features = self.rl_scaler.n_features_in_
                 rl_input    = self.rl_model.input_shape[-1]
-                print(f"[SMART AGENT] ✅ RL Model loaded. Expects {rl_input} input features.")
-                print(f"[SMART AGENT] ✅ RL Scaler loaded. Trained on {rl_features} features.")
+                print(f"[SMART AGENT] [OK] RL Model loaded. Expects {rl_input} input features.")
+                print(f"[SMART AGENT] [OK] RL Scaler loaded. Trained on {rl_features} features.")
                 # Store expected feature count for runtime validation
                 self.rl_n_features = rl_features
             else:
-                print("[SMART AGENT] ⚠️  RL Artifacts not found. Running in Fallback Mode (iForest-only).")
+                print("[SMART AGENT] [WARN] RL Artifacts not found. Running in Fallback Mode (iForest-only).")
         except Exception as e:
-            print(f"[SMART AGENT] ❌ Error loading RL models: {e}")
+            print(f"[SMART AGENT] [ERROR] Error loading RL models: {e}")
 
     # ------------------------------------------------------------------
     # Inference
@@ -72,7 +72,7 @@ class SmartAgent:
             # Ensure input shape matches what RL scaler expects
             expected = getattr(self, 'rl_n_features', 5)
             if raw_features.shape[1] != expected:
-                print(f"[SMART AGENT] ⚠️  Feature mismatch: got {raw_features.shape[1]}, expected {expected}")
+                print(f"[SMART AGENT] [WARN] Feature mismatch: got {raw_features.shape[1]}, expected {expected}")
                 return 0, None
 
             X_rl = self.rl_scaler.transform(raw_features)           # (1, 5)
@@ -115,12 +115,12 @@ class SmartAgent:
     # Action Executors
     # ------------------------------------------------------------------
     def _execute_critical(self, device_id, reason):
-        print(f"[SMART AGENT] 🔴 CRITICAL ACTION: {reason}")
+        print(f"[SMART AGENT] [CRIT] CRITICAL ACTION: {reason}")
         self._send_mqtt_command(device_id, "OFF")
         return f"CRITICAL: {reason}. Device Shutdown Initiated."
 
     def _execute_warning(self, device_id, reason):
-        print(f"[SMART AGENT] 🟡 WARNING ACTION: {reason}")
+        print(f"[SMART AGENT] [WARN] WARNING ACTION: {reason}")
         self._send_notification(device_id, reason)
         return f"WARNING: {reason}"
 
@@ -143,14 +143,14 @@ class SmartAgent:
             try:
                 with urllib.request.urlopen(req, timeout=8) as resp:
                     body = resp.read().decode("utf-8", errors="replace")
-                    print(f"[RELAY] ✅ Command={command} device={device_id} → HTTP {resp.status}: {body}")
+                    print(f"[RELAY] [OK] Command={command} device={device_id} -> HTTP {resp.status}: {body}")
             except urllib.error.HTTPError as e:
                 body = e.read().decode("utf-8", errors="replace")
-                print(f"[RELAY] ❌ HTTPError {e.code} for command={command}: {body}")
+                print(f"[RELAY] [ERROR] HTTPError {e.code} for command={command}: {body}")
             except Exception as e:
-                print(f"[RELAY] ❌ Failed to reach relay for command={command}: {e}")
+                print(f"[RELAY] [ERROR] Failed to reach relay for command={command}: {e}")
 
-        print(f"[RELAY] 🔄 Sending command={command} to device={device_id} → {RELAY_URL}")
+        print(f"[RELAY] [SYNC] Sending command={command} to device={device_id} -> {RELAY_URL}")
         t = threading.Thread(target=_fire, daemon=True)
         t.start()
 
@@ -294,7 +294,7 @@ class SmartAgent:
             }
 
         except Exception as e:
-            print(f"[SMART AGENT] ❌ Error in online training: {e}")
+            print(f"[SMART AGENT] [ERROR] Error in online training: {e}")
             return {"success": False, "reason": str(e)}
 
     def _replay(self):
@@ -333,9 +333,9 @@ class SmartAgent:
         """Persist updated RL model to disk."""
         try:
             self.rl_model.save(RL_MODEL_PATH)
-            print(f"[SMART AGENT] 💾 Model saved to {RL_MODEL_PATH}")
+            print(f"[SMART AGENT] [SAVE] Model saved to {RL_MODEL_PATH}")
         except Exception as e:
-            print(f"[SMART AGENT] ⚠️  Could not save model: {e}")
+            print(f"[SMART AGENT] [WARN] Could not save model: {e}")
 
     def get_training_stats(self):
         """Returns current online learning statistics."""

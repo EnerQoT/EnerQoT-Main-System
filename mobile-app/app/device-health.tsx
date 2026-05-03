@@ -5,12 +5,13 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { LineChart } from 'react-native-chart-kit';
+import { API_BASE_URL } from '../constants/Config';
 
 // Backend URL - Adjust based on the environment
 // Genymotion: http://10.0.3.2:5000
 // Android Emulator: http://10.0.2.2:5000
-// Physical Device: http://<YOUR_LOCAL_IP>:5000 (e.g., 192.168.1.100)
-const API_URL = 'http://127.0.0.1:5000/dashboard/data';
+
+const API_URL = `${API_BASE_URL}/dashboard/data`;
 
 export default function DeviceHealth() {
     const router = useRouter();
@@ -119,7 +120,7 @@ export default function DeviceHealth() {
     const systemInfo = [
         { label: 'Smart Sensor Version', value: '2.4.1' },
         { label: 'Device ID', value: 'EQ-SENSOR-X99' },
-        { label: 'Firmware Build', value: '2025.01.15' },
+        { label: 'Firmware Build', value: '2026.05.01' },
         { label: 'Last Update', value: lastUpdated || 'Syncing...' },
     ];
 
@@ -139,10 +140,18 @@ export default function DeviceHealth() {
         decimalPlaces: 0,
     };
 
-    const envChartConfig = {
+    const ambientTempChartConfig = {
         ...chartConfig,
-        color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-        propsForDots: { r: "0", strokeWidth: "0" },
+        color: (opacity = 1) => `rgba(245, 158, 11, ${opacity})`,
+        propsForDots: { r: "4", strokeWidth: "2", stroke: "#f59e0b" },
+        decimalPlaces: 1,
+    };
+
+    const humidityChartConfig = {
+        ...chartConfig,
+        color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+        propsForDots: { r: "4", strokeWidth: "2", stroke: "#3b82f6" },
+        decimalPlaces: 1,
     };
 
     const screenWidth = Dimensions.get("window").width;
@@ -166,24 +175,44 @@ export default function DeviceHealth() {
             >
                 <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
 
+                    {/* Device Online/Offline Status */}
+                    <View className={`rounded-2xl p-4 mb-4 flex-row items-center justify-between ${healthData?.device_online === false ? 'bg-red-500/20 border border-red-500/30' : 'bg-emerald-500/20 border border-emerald-500/30'}`}>
+                        <View className="flex-row items-center">
+                            <View className={`w-3 h-3 rounded-full mr-3 ${healthData?.device_online === false ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                            <Text className={`font-bold text-sm ${healthData?.device_online === false ? 'text-red-400' : 'text-emerald-400'}`}>
+                                {healthData?.device_online === false ? 'DEVICE OFFLINE' : 'DEVICE ONLINE'}
+                            </Text>
+                        </View>
+                        {healthData?.data_age_seconds != null && (
+                            <Text className="text-slate-400 text-xs font-medium">
+                                {healthData.device_online === false
+                                    ? `Last seen ${Math.round(healthData.data_age_seconds)}s ago`
+                                    : `Updated ${Math.round(healthData.data_age_seconds)}s ago`}
+                            </Text>
+                        )}
+                    </View>
+
                     {/* Overall Status */}
                     <View
                         className="rounded-3xl p-6 mb-6 flex-row items-center"
-                        style={{ backgroundColor: getStatusColor(healthData?.health?.color) }}
+                        style={{ backgroundColor: healthData?.device_online === false ? '#475569' : getStatusColor(healthData?.health?.color) }}
                     >
                         <View className="bg-white/20 p-3 rounded-2xl mr-4">
-                            <FontAwesome name={getStatusIcon(healthData?.health?.status) as any} size={32} color="white" />
+                            <FontAwesome name={healthData?.device_online === false ? 'plug' as any : getStatusIcon(healthData?.health?.status) as any} size={32} color="white" />
                         </View>
                         <View className="flex-1">
                             <Text className="text-white font-black text-2xl">
-                                {healthData?.health?.status?.split(':')[0] || 'Unknown'}
+                                {healthData?.device_online === false ? 'Offline' : (healthData?.health?.status?.split(':')[0] || 'Unknown')}
                             </Text>
                             <Text className="text-white/80 font-medium text-sm mt-1">
-                                {healthData?.health?.status || 'Waiting for data...'}
+                                {healthData?.device_online === false
+                                    ? 'Device is not sending data — showing last known values'
+                                    : (healthData?.health?.status || 'Waiting for data...')}
                             </Text>
                             {healthData?.health?.score !== null && (
                                 <Text className="text-white/60 text-xs mt-2 font-bold">
                                     Health Score: {healthData?.health?.score?.toFixed(1)} / 100
+                                    {healthData?.device_online === false ? ' (stale)' : ''}
                                 </Text>
                             )}
                         </View>
@@ -279,19 +308,31 @@ export default function DeviceHealth() {
                     </View>
 
                     <View className="bg-slate-800/80 rounded-3xl p-4 border border-white/10 mb-6">
-                        <Text className="text-slate-300 font-bold mb-4">Environment</Text>
+                        <Text className="text-slate-300 font-bold mb-4">Ambient Temperature (°C)</Text>
                         <LineChart
                             data={{
                                 labels: chartHistory.labels,
-                                datasets: [
-                                    { data: chartHistory.ambient_temp, color: (opacity = 1) => `rgba(245, 158, 11, ${opacity})` }, // orange
-                                    { data: chartHistory.humidity, color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})` } // blue
-                                ],
-                                legend: ["Temp (°C)", "Hum (%)"]
+                                datasets: [{ data: chartHistory.ambient_temp }]
                             }}
                             width={screenWidth - 88}
                             height={180}
-                            chartConfig={envChartConfig}
+                            chartConfig={ambientTempChartConfig}
+                            bezier
+                            style={{ borderRadius: 16 }}
+                            withInnerLines={false}
+                        />
+                    </View>
+
+                    <View className="bg-slate-800/80 rounded-3xl p-4 border border-white/10 mb-6">
+                        <Text className="text-slate-300 font-bold mb-4">Humidity (%)</Text>
+                        <LineChart
+                            data={{
+                                labels: chartHistory.labels,
+                                datasets: [{ data: chartHistory.humidity }]
+                            }}
+                            width={screenWidth - 88}
+                            height={180}
+                            chartConfig={humidityChartConfig}
                             bezier
                             style={{ borderRadius: 16 }}
                             withInnerLines={false}

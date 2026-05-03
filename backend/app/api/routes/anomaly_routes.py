@@ -24,7 +24,12 @@ def sensor_data():
         "frequency": float(data["frequency"]),
         "power_factor": float(data["power_factor"]),
         "temperature": float(data["temperature"]),
-        "relay_status": data.get("relay_status", "ON")
+        "relay_status": data.get("relay_status", "ON"),
+        # Forward nested sensor data for deeper analytics and historical tracking
+        "pzem": data.get("pzem", {}),
+        "si7021": data.get("si7021", {}),
+        "ina3221": data.get("ina3221", {}),
+        "system": data.get("system", {})
     }
 
     result = service.process(data["device_id"], payload)
@@ -207,6 +212,24 @@ def get_notifications(device_id):
 def mark_notification_read(notification_id):
     """Mark notification as read."""
     success = service.mark_notification_read(notification_id)
+    return jsonify({"success": success})
+
+
+@anomaly_bp.route("/notifications/<notification_id>", methods=["DELETE"])
+def delete_notification(notification_id):
+    """Delete a single notification."""
+    print(f"DEBUG: Attempting to delete notification {notification_id}")
+    success = service.delete_notification(notification_id)
+    print(f"DEBUG: Delete success: {success}")
+    return jsonify({"success": success})
+
+
+@anomaly_bp.route("/notifications/device/<device_id>", methods=["DELETE"])
+def clear_notifications(device_id):
+    """Clear all notifications for a device."""
+    print(f"DEBUG: Attempting to clear all notifications for device {device_id}")
+    success = service.clear_notifications(device_id)
+    print(f"DEBUG: Clear success: {success}")
     return jsonify({"success": success})
 
 
