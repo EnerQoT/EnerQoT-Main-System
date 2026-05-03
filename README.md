@@ -121,3 +121,7 @@ The mobile app follows component-based architecture with:
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+
+
+------------------------------------------------------
