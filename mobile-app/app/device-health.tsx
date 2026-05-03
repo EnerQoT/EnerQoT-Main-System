@@ -9,7 +9,7 @@ import { LineChart } from 'react-native-chart-kit';
 // Backend URL - Adjust based on the environment
 // Genymotion: http://10.0.3.2:5000
 // Android Emulator: http://10.0.2.2:5000
-// Physical Device: http://<YOUR_LOCAL_IP>:5000 (e.g., 192.168.1.100)
+
 const API_URL = 'http://127.0.0.1:5000/dashboard/data';
 
 export default function DeviceHealth() {
@@ -119,7 +119,7 @@ export default function DeviceHealth() {
     const systemInfo = [
         { label: 'Smart Sensor Version', value: '2.4.1' },
         { label: 'Device ID', value: 'EQ-SENSOR-X99' },
-        { label: 'Firmware Build', value: '2025.01.15' },
+        { label: 'Firmware Build', value: '2026.05.01' },
         { label: 'Last Update', value: lastUpdated || 'Syncing...' },
     ];
 
@@ -139,10 +139,18 @@ export default function DeviceHealth() {
         decimalPlaces: 0,
     };
 
-    const envChartConfig = {
+    const ambientTempChartConfig = {
         ...chartConfig,
-        color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-        propsForDots: { r: "0", strokeWidth: "0" },
+        color: (opacity = 1) => `rgba(245, 158, 11, ${opacity})`,
+        propsForDots: { r: "4", strokeWidth: "2", stroke: "#f59e0b" },
+        decimalPlaces: 1,
+    };
+
+    const humidityChartConfig = {
+        ...chartConfig,
+        color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+        propsForDots: { r: "4", strokeWidth: "2", stroke: "#3b82f6" },
+        decimalPlaces: 1,
     };
 
     const screenWidth = Dimensions.get("window").width;
@@ -279,19 +287,31 @@ export default function DeviceHealth() {
                     </View>
 
                     <View className="bg-slate-800/80 rounded-3xl p-4 border border-white/10 mb-6">
-                        <Text className="text-slate-300 font-bold mb-4">Environment</Text>
+                        <Text className="text-slate-300 font-bold mb-4">Ambient Temperature (°C)</Text>
                         <LineChart
                             data={{
                                 labels: chartHistory.labels,
-                                datasets: [
-                                    { data: chartHistory.ambient_temp, color: (opacity = 1) => `rgba(245, 158, 11, ${opacity})` }, // orange
-                                    { data: chartHistory.humidity, color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})` } // blue
-                                ],
-                                legend: ["Temp (°C)", "Hum (%)"]
+                                datasets: [{ data: chartHistory.ambient_temp }]
                             }}
                             width={screenWidth - 88}
                             height={180}
-                            chartConfig={envChartConfig}
+                            chartConfig={ambientTempChartConfig}
+                            bezier
+                            style={{ borderRadius: 16 }}
+                            withInnerLines={false}
+                        />
+                    </View>
+
+                    <View className="bg-slate-800/80 rounded-3xl p-4 border border-white/10 mb-6">
+                        <Text className="text-slate-300 font-bold mb-4">Humidity (%)</Text>
+                        <LineChart
+                            data={{
+                                labels: chartHistory.labels,
+                                datasets: [{ data: chartHistory.humidity }]
+                            }}
+                            width={screenWidth - 88}
+                            height={180}
+                            chartConfig={humidityChartConfig}
                             bezier
                             style={{ borderRadius: 16 }}
                             withInnerLines={false}
