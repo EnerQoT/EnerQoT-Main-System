@@ -87,5 +87,4 @@ backend/config/firebase_credentials.json
 Embedded-System/Firebase/*firebase-adminsdk*.json
 *firebase-adminsdk*.json
 
-# Other
-firebase_bridge.py
+# Other
