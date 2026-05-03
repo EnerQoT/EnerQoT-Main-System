@@ -20,7 +20,7 @@ services:
 
   frontend:
     build:
-      context: ./mobile-app
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: enerqot-frontend
     ports:
@@ -28,7 +28,7 @@ services:
     environment:
       - REACT_APP_API_URL=http://localhost:5000/api
     volumes:
-      - ./mobile-app:/app
+      - ./frontend:/app
       - /app/node_modules
     depends_on:
       - backend
