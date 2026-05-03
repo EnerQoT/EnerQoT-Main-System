@@ -69,6 +69,19 @@ export const getNotifications = async (deviceId: string, severity: string = 'all
     }
 };
 
+export const updateDeviceSettings = async (deviceId: string, settings: { smart_agent_enabled?: boolean, name?: string, location?: string }) => {
+    try {
+        const response = await api.post('/device/settings', {
+            device_id: deviceId,
+            ...settings
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error updating device settings:", error);
+        return null;
+    }
+};
+
 export const markNotificationRead = async (notificationId: string) => {
     try {
         const response = await api.put(`/notifications/${notificationId}/read`);

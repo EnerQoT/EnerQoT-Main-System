@@ -97,7 +97,14 @@ class SmartAgent:
         # CASE A: DQN detects Anomaly (trusted supervised signal)
         if rl_action == 1:
             log_msg = f"RL AGENT TRIGGER: Anomaly pattern detected (iForest Severity: {severity})"
-            return self._execute_critical(device_id, log_msg)
+            
+            # Check if smart agent is enabled for this device
+            is_enabled = self._is_agent_enabled(device_id)
+            if is_enabled:
+                return self._execute_critical(device_id, log_msg)
+            else:
+                print(f"[SMART AGENT] Anomaly detected but Smart Agent is DISABLED for {device_id}. Skipping shutdown.")
+                return f"CRITICAL: {log_msg}. (Auto-shutdown disabled)"
 
         # CASE B: iForest says CRITICAL but DQN says Normal
         # → Could be a new unseen pattern. Downgrade to WARNING for safety.
@@ -110,6 +117,19 @@ class SmartAgent:
             return self._execute_warning(device_id, "Minor deviation detected by Anomaly Model.")
 
         return "No action needed."
+
+    def _is_agent_enabled(self, device_id):
+        """Check MongoDB to see if the smart agent is toggled ON for this device."""
+        from app.database import get_collection
+        devices = get_collection('devices')
+        if devices:
+            try:
+                device = devices.find_one({"device_id": device_id})
+                if device:
+                    return device.get("smart_agent_enabled", True)
+            except Exception as e:
+                print(f"[SMART AGENT] Error checking agent status: {e}")
+        return True  # Default to True if we can't check
 
     # ------------------------------------------------------------------
     # Action Executors

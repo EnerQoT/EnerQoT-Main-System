@@ -159,6 +159,7 @@ class Device:
             "location": location,
             "type": device_type,
             "status": "active",
+            "smart_agent_enabled": True,
             "created_at": datetime.now(timezone.utc)
         }
 

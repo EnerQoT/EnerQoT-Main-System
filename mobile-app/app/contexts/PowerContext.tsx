@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { sendDeviceCommand } from '../../services/api';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { sendDeviceCommand, updateDeviceSettings } from '../../services/api';
 
 interface PowerContextType {
     isPowerOn: boolean;
@@ -18,6 +18,11 @@ export function PowerProvider({ children }: { children: ReactNode }) {
     const [isPowerOn, setIsPowerOn] = useState(true);
     const [lastKnownTimestamp, setLastKnownTimestamp] = useState<string | null>(null);
     const [isAutoShutdownEnabled, setIsAutoShutdownEnabled] = useState(true);
+
+    // Sync Smart Agent status with backend
+    useEffect(() => {
+        updateDeviceSettings('test_device_01', { smart_agent_enabled: isAutoShutdownEnabled });
+    }, [isAutoShutdownEnabled]);
 
     const togglePower = async () => {
         const command = isPowerOn ? "OFF" : "ON";

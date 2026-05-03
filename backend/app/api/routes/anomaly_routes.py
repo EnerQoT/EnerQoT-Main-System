@@ -188,6 +188,40 @@ def device_control():
     })
 
 
+@anomaly_bp.route("/device/settings", methods=["POST"])
+def device_settings():
+    """Update device-specific settings like smart agent toggle."""
+    data = request.json
+    if not data or "device_id" not in data:
+        return jsonify({"error": "Missing device_id"}), 400
+
+    device_id = data["device_id"]
+    from app.database import get_collection
+    devices = get_collection('devices')
+    
+    if not devices:
+        return jsonify({"error": "Database not available"}), 500
+
+    # Fields that are allowed to be updated
+    updatable = ["smart_agent_enabled", "name", "location"]
+    update_data = {k: v for k, v in data.items() if k in updatable}
+    
+    if not update_data:
+        return jsonify({"error": "No valid settings provided"}), 400
+
+    result = devices.update_one(
+        {"device_id": device_id},
+        {"$set": update_data},
+        upsert=True # Create if doesn't exist (e.g. first time setting up)
+    )
+
+    return jsonify({
+        "status": "success",
+        "updated": update_data,
+        "modified_count": result.modified_count
+    })
+
+
 # ------------------------------------------------------------------
 # Historical Data Endpoints
 # ------------------------------------------------------------------
