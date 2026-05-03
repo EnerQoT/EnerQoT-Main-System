@@ -128,6 +128,34 @@ export interface PzemData {
     voltage: number;
 }
 
+export interface RealTimeSensorData {
+  ina3221?: {
+    battery?: { current_ma: number; voltage: number };
+    esp?: { current_ma: number; voltage: number };
+    main?: { current_ma: number; voltage: number };
+  };
+  pzem?: {
+    current: number;
+    energy: number;
+    frequency: number;
+    pf: number;
+    power: number;
+    voltage: number;
+  };
+  relay?: string;
+  si7021?: {
+    humidity: number;
+    temperature: number;
+  };
+  system?: {
+    cpu_temp: number;
+    free_heap: number;
+    reconnects: number;
+    rssi: number;
+  };
+  timestamp?: string;
+}
+
 export interface TelemetryResponse {
     status: string;
     analysis: {
@@ -152,23 +180,12 @@ export const postTelemetry = async (device: string, usage: number): Promise<Tele
     }
 };
 
-export const fetchLatestPzemData = async (): Promise<PzemData | null> => {
+export const fetchLatestSensorData = async (): Promise<RealTimeSensorData | null> => {
     try {
-        const response = await axios.get('https://rp-project-51690-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_data.json?orderBy="$key"&limitToLast=1');
-        const data = response.data;
-
-        if (data) {
-            const keys = Object.keys(data);
-            if (keys.length > 0) {
-                const latestReading = data[keys[0]];
-                if (latestReading && latestReading.pzem) {
-                    return latestReading.pzem as PzemData;
-                }
-            }
-        }
-        return null;
-    } catch (error) {
-        console.error('Error fetching from Firebase:', error);
+        const response = await api.get('/api/tips/realtime');
+        return response.data as RealTimeSensorData;
+    } catch (error: any) {
+        console.error('[API] Error fetching realtime data from backend tips endpoint:', error.message);
         return null;
     }
 };

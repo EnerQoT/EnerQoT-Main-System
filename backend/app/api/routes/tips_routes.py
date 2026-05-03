@@ -61,6 +61,15 @@ def top_devices():
     service = get_service()
     return jsonify(service.get_top_devices())
 
+@api.route("/realtime", methods=["GET"])
+def realtime_data():
+    from app.services.anomaly_service import AnomalyService
+    service = AnomalyService()
+    status = service.get_latest_status('test_device_01')
+    if not status or 'data' not in status:
+        return jsonify({"error": "No data available in system"}), 404
+    return jsonify(status['data']), 200
+
 @api.route("/recommendations", methods=["GET"])
 def recommendations():
     service = get_service()
