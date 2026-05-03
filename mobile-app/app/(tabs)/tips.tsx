@@ -31,21 +31,19 @@ export default function Tips() {
                 
                 setTipsData({
                     forecast: res.forecast || { today: 0, tomorrow: 0 },
-                    top_devices: useFallback ? { "Real-Time IoT Data": 45.2 } : res.top_devices,
-                    recommendations: useFallback ? [] : res.recommendations
+                    recommendations: res.recommendations || []
                 });
             } else {
                 setTipsData({
                     forecast: { today: 0, tomorrow: 0 },
-                    top_devices: { "Real-Time IoT Data": 45.2 },
                     recommendations: []
                 });
             }
             if (cumulativeEnergy === null) {
                 setCumulativeEnergy(45.2);
             }
-        } catch (error) {
-            console.error(error);
+        } catch (error: any) {
+            console.error('[Tips] Error in fetchInitialData:', error.message || error);
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -57,7 +55,11 @@ export default function Tips() {
             postTelemetry("AC", cumulativeEnergy).then((res) => {
                 if (res) {
                     setTelemetry(res);
+                } else {
+                    console.warn('[Tips] Telemetry update returned no analysis');
                 }
+            }).catch(err => {
+                console.error('[Tips] Telemetry update failed:', err.message);
             });
         }
     }, [cumulativeEnergy]);
@@ -100,7 +102,7 @@ export default function Tips() {
         );
     }
 
-    if (!tipsData || !tipsData.top_devices || Object.keys(tipsData.top_devices).length === 0) {
+    if (!tipsData) {
         return (
             <SafeAreaView className="flex-1 bg-slate-900 justify-center items-center">
                 <Text className="text-rose-500 font-bold">Failed to load device data.</Text>
@@ -108,7 +110,7 @@ export default function Tips() {
         );
     }
 
-    const selectedDeviceName = Object.keys(tipsData.top_devices)[0];
+    const selectedDeviceName = "AC Main";
     
     const selectedUsage = telemetry?.analysis?.current_usage || 4.85;
     const meanDailyUsage = telemetry?.analysis?.historical_mean || 5.0;
@@ -131,6 +133,11 @@ export default function Tips() {
         usageColorText = 'text-orange-400';
         usageColorBg = 'bg-orange-900/30';
         usageBorder = 'border-orange-500/30';
+    } else {
+        usageLevel = 'Normal Usage';
+        usageColorText = 'text-slate-400';
+        usageColorBg = 'bg-slate-800';
+        usageBorder = 'border-slate-700';
     }
 
     const usageDifference = meanDailyUsage - selectedUsage;
@@ -308,35 +315,6 @@ export default function Tips() {
                         </View>
                     </View>
 
-                    {/* Top Devices Section */}
-                    {tipsData?.top_devices && Object.keys(tipsData.top_devices).length > 0 && (
-                        <View className="mb-8 mt-6">
-                            <View className="flex-row items-center mb-4">
-                                <FontAwesome name="bar-chart" size={18} color="#a855f7" style={{ marginRight: 8 }} />
-                                <Text className="text-lg font-bold text-white">Top Devices by Usage</Text>
-                            </View>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 16 }}>
-                                {Object.entries(tipsData.top_devices as Record<string, number>).map(([device, usage], idx) => {
-                                    const maxUsage = Math.max(...Object.values(tipsData.top_devices as Record<string, number>));
-                                    const barFraction = maxUsage > 0 ? usage / maxUsage : 0;
-                                    const barColors = ['#6366f1', '#8b5cf6', '#ec4899', '#f97316', '#22c55e'];
-                                    const color = barColors[idx % barColors.length];
-                                    return (
-                                        <View key={device} className="bg-slate-800/80 rounded-3xl p-5 mr-4 shadow-lg border border-white/5" style={{ width: 160 }}>
-                                            <View className="w-10 h-10 rounded-2xl items-center justify-center mb-3" style={{ backgroundColor: color + '20' }}>
-                                                <FontAwesome name="plug" size={18} color={color} />
-                                            </View>
-                                            <Text className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1" numberOfLines={1}>{device}</Text>
-                                            <Text className="text-2xl font-black text-white tracking-tight">{usage.toFixed(2)}<Text className="text-xs font-bold text-slate-400"> kWh</Text></Text>
-                                            <View className="mt-3 h-2 bg-slate-700 rounded-full overflow-hidden">
-                                                <View style={{ width: `${barFraction * 100}%`, backgroundColor: color, height: '100%', borderRadius: 999 }} />
-                                            </View>
-                                        </View>
-                                    );
-                                })}
-                            </ScrollView>
-                        </View>
-                    )}
 
                     {/* Smart Recommendations Section */}
                     {tipsData?.recommendations && tipsData.recommendations.length > 0 && (
