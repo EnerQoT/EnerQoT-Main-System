@@ -31,9 +31,9 @@ class AnomalyService:
             self.anomalies = get_collection('anomalies')
             self.notifications = get_collection('notifications')
             self.user_feedback = get_collection('user_feedback')
-            print("✅ AnomalyService using MongoDB for persistence")
+            print("[OK] AnomalyService using MongoDB for persistence")
         else:
-            print("⚠️  AnomalyService running in-memory only (no database)")
+            print("[WARN] AnomalyService running in-memory only (no database)")
 
     # ------------------------------------------------------------------
     # Severity Classification
@@ -70,11 +70,15 @@ class AnomalyService:
                     payload.get('current', 0),
                     payload.get('frequency', 0),
                     payload.get('temperature', 0),
-                    payload.get('power_factor', 0)
+                    payload.get('power_factor', 0),
+                    ina3221=payload.get("ina3221", {}),
+                    system=payload.get("system", {}),
+                    pzem=payload.get("pzem", {}),
+                    si7021=payload.get("si7021", {})
                 )
                 self.sensor_readings.insert_one(reading)
             except Exception as e:
-                print(f"⚠️  DB Error (Sensor Write): {e}")
+                print(f"[WARN] DB Error: {e}")
 
         # 2. Update in-memory buffer
         if device_id not in self.buffers:
@@ -163,7 +167,7 @@ class AnomalyService:
                 )
                 self.notifications.insert_one(notification)
             except Exception as e:
-                print(f"⚠️  DB Error (Anomaly Write): {e}")
+                print(f"[WARN] DB Error (Anomaly Write): {e}")
 
         # 10. Prepare and cache result
         result = {
@@ -273,7 +277,7 @@ class AnomalyService:
                 )
                 self.user_feedback.insert_one(feedback_doc)
             except Exception as e:
-                print(f"⚠️  DB Error (Feedback Write): {e}")
+                print(f"[WARN] DB Error (Feedback Write): {e}")
 
         stats = self.agent.get_training_stats()
         return {
@@ -327,7 +331,11 @@ class AnomalyService:
                             "current": latest_reading.get('current'),
                             "frequency": latest_reading.get('frequency'),
                             "temperature": latest_reading.get('temperature'),
-                            "power_factor": latest_reading.get('power_factor')
+                            "power_factor": latest_reading.get('power_factor'),
+                            "ina3221": latest_reading.get('ina3221', {}),
+                            "system": latest_reading.get('system', {}),
+                            "pzem": latest_reading.get('pzem', {}),
+                            "si7021": latest_reading.get('si7021', {})
                         },
                         "timestamp": latest_reading.get('timestamp').isoformat()
                             if latest_reading.get('timestamp')
@@ -353,7 +361,7 @@ class AnomalyService:
 
                     return response
             except Exception as e:
-                print(f"⚠️  DB Error (Status Read): {e}")
+                print(f"[WARN] DB Error (Status Read): {e}")
 
         # Fallback to in-memory cache
         if device_id and device_id in self.latest_outputs:

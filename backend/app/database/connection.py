@@ -46,14 +46,14 @@ class MongoDB:
             # Get database
             self.db = self.client[database_name]
             
-            logger.info(f"✅ Connected to MongoDB database: {database_name}")
+            logger.info(f"[OK] Connected to MongoDB database: {database_name}")
             
             # Create indexes
             self._create_indexes()
             
         except (ConnectionFailure, ServerSelectionTimeoutError, ConfigurationError) as e:
-            logger.error(f"❌ Failed to connect to MongoDB: {e}")
-            logger.warning("⚠️  Running without database - using in-memory storage")
+            logger.error(f"[ERROR] Failed to connect to MongoDB: {e}")
+            logger.warning("[WARN] Running without database - using in-memory storage")
             self.db = None
     
     def _create_indexes(self):
@@ -96,10 +96,10 @@ class MongoDB:
             # Devices indexes
             self.db.devices.create_index("device_id", unique=True)
             
-            logger.info("✅ Database indexes created successfully")
+            logger.info("[OK] Database indexes created successfully")
             
         except Exception as e:
-            logger.error(f"❌ Error creating indexes: {e}")
+            logger.error(f"[ERROR] Error creating indexes: {e}")
     
     def get_collection(self, collection_name):
         """Get a collection from the database"""

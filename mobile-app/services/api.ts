@@ -1,12 +1,7 @@
 import axios from 'axios';
-import { Platform } from 'react-native';
+import { API_BASE_URL } from '../constants/Config';
 
-// For Development and Testing:
-// - Expo Go on a physical device: uses the host machine's LAN IP (192.168.1.92)
-// - Android emulator: use 10.0.2.2
-// - iOS simulator / web: use localhost
-// When testing on physical device with Expo Go, LAN IP is required.
-const BASE_URL = 'http://192.168.1.123:5000';
+const BASE_URL = API_BASE_URL;
 
 const api = axios.create({
     baseURL: BASE_URL,
@@ -40,6 +35,19 @@ export const sendFeedback = async (deviceId: string, correctLabel: number) => {
 };
 
 // New APIs for real data integration
+
+export const sendDeviceCommand = async (deviceId: string, command: string) => {
+    try {
+        const response = await api.post('/device/control', {
+            device_id: deviceId,
+            command
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error sending device command:", error);
+        return null;
+    }
+};
 
 export const getHistoricalData = async (deviceId: string, range: string) => {
     try {
@@ -112,12 +120,12 @@ export const getReports = async (deviceId: string, period: string = 'daily') => 
 };
 
 export interface PzemData {
-  current: number;
-  energy: number;
-  frequency: number;
-  pf: number;
-  power: number;
-  voltage: number;
+    current: number;
+    energy: number;
+    frequency: number;
+    pf: number;
+    power: number;
+    voltage: number;
 }
 
 export interface RealTimeSensorData {
@@ -149,15 +157,15 @@ export interface RealTimeSensorData {
 }
 
 export interface TelemetryResponse {
-  status: string;
-  analysis: {
-      device: string;
-      current_usage: number;
-      status: string;
-      message: string;
-      historical_mean: number;
-      std_dev: number;
-  };
+    status: string;
+    analysis: {
+        device: string;
+        current_usage: number;
+        status: string;
+        message: string;
+        historical_mean: number;
+        std_dev: number;
+    };
 }
 
 export const postTelemetry = async (device: string, usage: number): Promise<TelemetryResponse | null> => {
@@ -174,9 +182,9 @@ export const postTelemetry = async (device: string, usage: number): Promise<Tele
 
 export const fetchLatestPzemData = async (): Promise<PzemData | null> => {
     try {
-        const response = await axios.get('https://rp-project-51690-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_readings.json?orderBy="$key"&limitToLast=1');
+        const response = await axios.get('https://rp-project-51690-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_data.json?orderBy="$key"&limitToLast=1');
         const data = response.data;
-        
+
         if (data) {
             const keys = Object.keys(data);
             if (keys.length > 0) {

@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const TIPS_API_URL = 'http://localhost:5000/api/tips';
+const TIPS_API_URL = `${import.meta.env.VITE_API_BASE_URL}/api/tips`;
+const FIREBASE_DB_URL = 'https://rp-project-51690-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_readings.json?orderBy="$key"&limitToLast=1';
 
 export const tipsApi = axios.create({
     baseURL: TIPS_API_URL,
