@@ -5,12 +5,13 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { LineChart } from 'react-native-chart-kit';
+import { API_BASE_URL } from '../constants/Config';
 
 // Backend URL - Adjust based on the environment
 // Genymotion: http://10.0.3.2:5000
 // Android Emulator: http://10.0.2.2:5000
 
-const API_URL = 'http://127.0.0.1:5000/dashboard/data';
+const API_URL = `${API_BASE_URL}/dashboard/data`;
 
 export default function DeviceHealth() {
     const router = useRouter();
