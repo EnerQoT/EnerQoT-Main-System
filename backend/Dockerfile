@@ -25,5 +25,5 @@ EXPOSE 5000
 # Make start.sh executable
 RUN chmod +x start.sh
 
-# Run the application using the startup script
-CMD ["./start.sh"]
+# Run the application using bash to bypass host volume permission issues
+CMD ["bash", "start.sh"]
