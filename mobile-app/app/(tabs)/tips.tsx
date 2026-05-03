@@ -39,8 +39,9 @@ export default function Tips() {
                     recommendations: []
                 });
             }
+            // Fallback for demo purposes if no data yet
             if (cumulativeEnergy === null) {
-                setCumulativeEnergy(45.2);
+                // We'll let the real-time fetch update this
             }
         } catch (error: any) {
             console.error('[Tips] Error in fetchInitialData:', error.message || error);
@@ -52,7 +53,7 @@ export default function Tips() {
 
     useEffect(() => {
         if (cumulativeEnergy !== null) {
-            postTelemetry("AC", cumulativeEnergy).then((res) => {
+            postTelemetry("test_device_01", cumulativeEnergy).then((res) => {
                 if (res) {
                     setTelemetry(res);
                 } else {
@@ -71,7 +72,7 @@ export default function Tips() {
              fetchLatestSensorData().then((res) => {
                  if (res) {
                      setRealTimeData(res);
-                     if (res.pzem) {
+                     if (res.pzem && res.pzem.energy !== undefined) {
                          setCumulativeEnergy(res.pzem.energy);
                      }
                  }

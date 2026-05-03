@@ -61,10 +61,19 @@ def top_devices():
     service = get_service()
     return jsonify(service.get_top_devices())
 
+# Global instance to avoid reloading models on every request
+_shared_anomaly_service = None
+
+def get_anomaly_service():
+    global _shared_anomaly_service
+    if _shared_anomaly_service is None:
+        from app.services.anomaly_service import AnomalyService
+        _shared_anomaly_service = AnomalyService()
+    return _shared_anomaly_service
+
 @api.route("/realtime", methods=["GET"])
 def realtime_data():
-    from app.services.anomaly_service import AnomalyService
-    service = AnomalyService()
+    service = get_anomaly_service()
     status = service.get_latest_status('test_device_01')
     if not status or 'data' not in status:
         return jsonify({"error": "No data available in system"}), 404

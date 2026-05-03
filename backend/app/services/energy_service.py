@@ -3,7 +3,7 @@ import joblib
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from app.services.config import MODELS_DIR as MODEL_DIR, PARTIAL_FACTOR
+from app.services.config import MODEL_DIR, PARTIAL_FACTOR
 from app.database.connection import get_collection, is_db_connected
 
 class ModelService:
@@ -25,11 +25,11 @@ class ModelService:
 
     def load_models(self):
         # Paths
-        p_model = MODEL_DIR / "prophet_energy_model.pkl"
-        p_scaler = MODEL_DIR / "temperature_scaler.pkl"
-        p_stats = MODEL_DIR / "device_stats.pkl"
-        p_recs = MODEL_DIR / "base_recommendations.pkl"
-        p_levels = MODEL_DIR / "recommendation_levels.pkl"
+        p_model = os.path.join(MODEL_DIR, "prophet_energy_model.pkl")
+        p_scaler = os.path.join(MODEL_DIR, "temperature_scaler.pkl")
+        p_stats = os.path.join(MODEL_DIR, "device_stats.pkl")
+        p_recs = os.path.join(MODEL_DIR, "base_recommendations.pkl")
+        p_levels = os.path.join(MODEL_DIR, "recommendation_levels.pkl")
 
         # Load
         try:

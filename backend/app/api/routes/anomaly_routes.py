@@ -24,7 +24,12 @@ def sensor_data():
         "frequency": float(data["frequency"]),
         "power_factor": float(data["power_factor"]),
         "temperature": float(data["temperature"]),
-        "relay_status": data.get("relay_status", "ON")
+        "relay_status": data.get("relay_status", "ON"),
+        # Forward nested sensor data for deeper analytics and historical tracking
+        "pzem": data.get("pzem", {}),
+        "si7021": data.get("si7021", {}),
+        "ina3221": data.get("ina3221", {}),
+        "system": data.get("system", {})
     }
 
     result = service.process(data["device_id"], payload)

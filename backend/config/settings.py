@@ -12,6 +12,3 @@ RL_MODEL_PATH = MODEL_DIR / "rl_model.keras"
 RL_SCALER_PATH = MODEL_DIR / "device_agnostic_scaler_Rl.pkl"
 
 WINDOW_SIZE = 20
-
-SIMULATED_DATA_PATH = MODEL_DIR / "simulated_iot_data.csv"
-PARTIAL_FACTOR = 0.7

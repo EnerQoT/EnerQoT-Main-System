@@ -23,13 +23,14 @@ if __name__ == "__main__":
     scheduler.start()
     print("Automated Daily Training Scheduler Started.")
     
-    # Run the Flask app
-    # Note: use_reloader=False is used to prevent the scheduler from starting twice
-    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
-    # Ensure bridge is only started once when Flask reload is active
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug:
+    # Start the bridge only in the main thread (to avoid double execution with Flask reloader)
+    if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
         print("Starting Firebase Bridge as a background process...")
-        # Start the bridge so their logs show together in the same terminal
-        subprocess.Popen([sys.executable, "firebase_bridge.py"])
+        try:
+            subprocess.Popen([sys.executable, "firebase_bridge.py"])
+        except Exception as e:
+            print(f"Error starting Firebase Bridge: {e}")
 
+    # Run the Flask app
+    # host="0.0.0.0" allows access from the local network (important for the mobile app)
     app.run(host="0.0.0.0", port=5000, debug=True)
