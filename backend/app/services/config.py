@@ -7,3 +7,5 @@ DATA_DIR = os.path.join(BASE_DIR, "database")
 
 # Constants
 PARTIAL_FACTOR = 0.7  # For projecting partially incomplete daily data
+SIMULATED_DATA_PATH = os.path.join(DATA_DIR, "simulated_usage.csv")
+SIMULATED_DEVICES = ["AC", "Heater", "Fridge", "Lights", "Laundry"]

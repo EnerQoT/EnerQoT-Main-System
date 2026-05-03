@@ -11,7 +11,7 @@ class SensorReading:
     """Sensor reading document model"""
 
     @staticmethod
-    def create(device_id, voltage, current, frequency, temperature, power_factor):
+    def create(device_id, voltage, current, frequency, temperature, power_factor, ina3221=None, system=None, pzem=None, si7021=None):
         """Create a sensor reading document"""
         return {
             "device_id": device_id,
@@ -21,6 +21,10 @@ class SensorReading:
             "frequency": float(frequency),
             "temperature": float(temperature),
             "power_factor": float(power_factor),
+            "ina3221": ina3221 or {},
+            "system": system or {},
+            "pzem": pzem or {},
+            "si7021": si7021 or {},
             "created_at": datetime.now(timezone.utc)
         }
 
@@ -156,4 +160,36 @@ class Device:
             "type": device_type,
             "status": "active",
             "created_at": datetime.now(timezone.utc)
+        }
+
+
+class DailyUsage:
+    """Daily energy usage documentation model"""
+    
+    @staticmethod
+    def create(device_id, date, total_kwh, cost=0.0):
+        """Create a daily usage document"""
+        return {
+            "device_id": device_id,
+            "date": date,
+            "total_kwh": float(total_kwh),
+            "cost": float(cost),
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        }
+
+
+class Tip:
+    """Energy saving tip model"""
+    
+    @staticmethod
+    def create(device_id, title, description, category="general"):
+        """Create a tip document"""
+        return {
+            "device_id": device_id,
+            "title": title,
+            "description": description,
+            "category": category,
+            "created_at": datetime.now(timezone.utc),
+            "is_active": True
         }

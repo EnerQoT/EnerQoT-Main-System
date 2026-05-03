@@ -128,14 +128,16 @@ class SmartAgent:
         """Send ON/OFF command to the physical relay device via HTTP (non-blocking)."""
         import threading, urllib.request, urllib.error, json as _json
 
-        RELAY_URL = "http://13.60.180.169:5000/relay"
+        base_url = os.getenv("RELAY_API_URL", "http://13.63.174.202:8000").rstrip("/")
+        RELAY_URL = f"{base_url}/relay"
+        api_key = os.getenv("RELAY_API_KEY", "rqYXdhShTLvjp6DCKSEEVTlw588pZQ9OKr7T5")
 
         def _fire():
             payload = _json.dumps({"command": command}).encode("utf-8")
             req = urllib.request.Request(
                 RELAY_URL,
                 data=payload,
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json", "X-API-Key": api_key},
                 method="POST"
             )
             try:

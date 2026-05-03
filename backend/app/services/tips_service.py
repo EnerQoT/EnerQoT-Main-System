@@ -2,9 +2,8 @@ import os
 import joblib
 import pandas as pd
 import numpy as np
-from datetime import datetime, timezone
-from app.services.config import MODELS_DIR as MODEL_DIR, PARTIAL_FACTOR
-from app.database.connection import get_collection, is_db_connected
+from datetime import datetime
+from .config import MODELS_DIR as MODEL_DIR, SIMULATED_DATA_PATH, PARTIAL_FACTOR
 
 class ModelService:
     _instance = None
@@ -60,51 +59,17 @@ class TipsService:
         self.models = ModelService.get_instance()
         self.std_multiplier = 1.0
         
-        # Load Data
-        self.df = pd.DataFrame(columns=['date', 'power_usage', 'temperature', 'device'])
-        self.refresh_data()
-
-    def refresh_data(self):
-        """Fetches the latest data from MongoDB instead of a local file."""
-        if not is_db_connected():
-            print("WARNING: Database not connected, running TipsService with empty data.")
-            return
-
-        readings_col = get_collection("sensor_readings")
-        if readings_col is None:
-            return
-            
-        # Get last 1000 readings
-        recent_readings = list(readings_col.find({}, {"_id": 0}).sort("timestamp", -1).limit(1000))
-        if not recent_readings:
-            print("INFO: No historical data in database.")
-            return
-
-        parsed_data = []
-        for r in recent_readings:
-            v = r.get("voltage", 230)
-            i = r.get("current", 0)
-            pf = r.get("power_factor", 1)
-            power_watts = v * i * pf
-            power_kwh = power_watts / 1000
-
-            parsed_data.append({
-                'date': r.get("timestamp"),
-                'power_usage': power_kwh,
-                'temperature': r.get("temperature", 25.0),
-                'device': r.get("device_id", "Unknown")
-            })
-
-        self.df = pd.DataFrame(parsed_data)
-        if not self.df.empty:
+        # In a real app, this would be a DB query. Here we load CSV once or per request.
+        # Check if file exists to avoid crash
+        if os.path.exists(SIMULATED_DATA_PATH):
+            self.df = pd.read_csv(SIMULATED_DATA_PATH)
             self.df['date'] = pd.to_datetime(self.df['date'])
+        else:
+            self.df = pd.DataFrame(columns=['date', 'power_usage', 'temperature', 'device'])
+            print(f"WARNING: Simulated data missing at {SIMULATED_DATA_PATH}")
 
     def _get_today(self):
-        # The MongoDB timestamps are natively UTC or system offset.
-        # Use the latest actual date from our database dataframe to avoid false 0-value lookups over midnight.
-        if not self.df.empty and 'date' in self.df.columns:
-            return self.df['date'].dt.date.max()
-        return datetime.now(timezone.utc).date()
+        return datetime.now().date()
     
     def update_config(self, key, value):
         if key == 'std_multiplier':
@@ -120,7 +85,9 @@ class TipsService:
             "device": device,
             "current_usage": current_usage,
             "status": "unknown",
-            "message": "No historical data for this device."
+            "message": "No historical data for this device.",
+            "historical_mean": 0.0,
+            "std_dev": 0.0
         }
 
         if self.models.device_stats is None:
@@ -132,8 +99,12 @@ class TipsService:
         if d_stat.empty:
             return result
             
-        mean = d_stat['mean'].values[0]
-        std = d_stat['std'].values[0]
+        mean = float(d_stat['mean'].values[0])
+        std = float(d_stat['std'].values[0])
+        
+        # Output the exact stats for frontend usage logic
+        result["historical_mean"] = round(mean, 2)
+        result["std_dev"] = round(std, 2)
         
         # Adjust thresholds by multiplier
         effective_std = std * self.std_multiplier
@@ -149,45 +120,10 @@ class TipsService:
         return result
 
     def get_forecast(self):
-        if self.models.model is None or self.df.empty:
-            return {"today": 0, "tomorrow": 0, "error": "Model or Data missing"}
-
-        today = self._get_today()
-        # Future DF for prophet
-        future_dates = pd.date_range(start=today, periods=2, freq='D')
-        future = pd.DataFrame({'ds': future_dates})
-
-        # Get last known temp - handling empty case if needed but assuming data exists if loaded
-        if 'temperature' in self.df.columns and not self.df.empty:
-            last_temp = self.df.groupby('date')['temperature'].mean().iloc[-1]
-        else:
-            last_temp = 25.0 # default
-
-        # Scale
-        if self.models.scaler:
-            try:
-                # Scaler expects 2D array
-                future['temp'] = self.models.scaler.transform([[last_temp]])[0][0]
-            except:
-                 future['temp'] = 0 # Fallback
-        else:
-             future['temp'] = 0
-
-        # Predict
-        try:
-            forecast = self.models.model.predict(future)
-            tomorrow_pred = round(forecast.iloc[1]['yhat'], 2)
-        except Exception as e:
-            print(f"Forecast Error: {e}")
-            tomorrow_pred = 0
-
-        # Projected today
-        actual_today_sum = self.df[self.df['date'].dt.date == today]['power_usage'].sum()
-        projected_today = round(actual_today_sum / PARTIAL_FACTOR, 2)
-
+        # Hardcoded for now based on user request since it is not fully implemented yet
         return {
-            "today": projected_today,
-            "tomorrow": tomorrow_pred
+            "today": 45.2,
+            "tomorrow": 48.5
         }
 
     def get_top_devices(self):

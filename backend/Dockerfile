@@ -22,5 +22,8 @@ COPY . .
 # Expose port
 EXPOSE 5000
 
-# Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "run:app"]
+# Make start.sh executable
+RUN chmod +x start.sh
+
+# Run the application using bash to bypass host volume permission issues
+CMD ["bash", "start.sh"]
