@@ -22,5 +22,8 @@ COPY . .
 # Expose port
 EXPOSE 5000
 
-# Run the application with 1 worker, 4 threads, and increased timeout for ML models
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "4", "--timeout", "120", "run:app"]
+# Make start.sh executable
+RUN chmod +x start.sh
+
+# Run the application using the startup script
+CMD ["./start.sh"]
