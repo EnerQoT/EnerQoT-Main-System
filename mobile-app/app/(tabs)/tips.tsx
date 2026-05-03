@@ -113,9 +113,9 @@ export default function Tips() {
 
     const selectedDeviceName = "AC Main";
     
-    const selectedUsage = telemetry?.analysis?.current_usage || 4.85;
-    const meanDailyUsage = telemetry?.analysis?.historical_mean || 5.0;
-    const stdDev = telemetry?.analysis?.std_dev || 0.1;
+    const selectedUsage = telemetry?.analysis?.current_usage || 0;
+    const meanDailyUsage = telemetry?.analysis?.historical_mean || 0;
+    const stdDev = telemetry?.analysis?.std_dev || 0;
 
     let usageLevel = 'Normal Usage';
     let usageColorText = 'text-slate-400';
@@ -124,21 +124,18 @@ export default function Tips() {
     
     const effectiveStdDev = Math.max(stdDev, meanDailyUsage * 0.05);
 
-    if (selectedUsage <= meanDailyUsage - effectiveStdDev) {
-        usageLevel = 'Low: Keep Using as usual';
-        usageColorText = 'text-blue-400';
-        usageColorBg = 'bg-blue-900/30';
-        usageBorder = 'border-blue-500/30';
-    } else if (selectedUsage > meanDailyUsage + effectiveStdDev) {
-        usageLevel = 'High: Reduce usage to save bill';
-        usageColorText = 'text-orange-400';
-        usageColorBg = 'bg-orange-900/30';
-        usageBorder = 'border-orange-500/30';
-    } else {
-        usageLevel = 'Normal Usage';
-        usageColorText = 'text-slate-400';
-        usageColorBg = 'bg-slate-800';
-        usageBorder = 'border-slate-700';
+    if (meanDailyUsage > 0) {
+        if (selectedUsage <= meanDailyUsage - effectiveStdDev) {
+            usageLevel = 'Low: Keep Using as usual';
+            usageColorText = 'text-blue-400';
+            usageColorBg = 'bg-blue-900/30';
+            usageBorder = 'border-blue-500/30';
+        } else if (selectedUsage > meanDailyUsage + effectiveStdDev) {
+            usageLevel = 'High: Reduce usage to save bill';
+            usageColorText = 'text-orange-400';
+            usageColorBg = 'bg-orange-900/30';
+            usageBorder = 'border-orange-500/30';
+        }
     }
 
     const usageDifference = meanDailyUsage - selectedUsage;
@@ -146,21 +143,21 @@ export default function Tips() {
 
     const formatCurrent = (val?: number) => {
         if (val === undefined || val === null) return { v: val, u: "A" };
-        if (val > 0 && val < 1) return { v: val * 1000, u: "mA" };
-        return { v: val, u: "A" };
+        if (val > 0 && val < 1) return { v: (val * 1000).toFixed(0), u: "mA" };
+        return { v: val.toFixed(2), u: "A" };
     };
 
     const formatPower = (val?: number) => {
         if (val === undefined || val === null) return { v: val, u: "W" };
-        if (val > 0 && val < 1) return { v: val * 1000, u: "W" };
-        return { v: val, u: "W" };
+        if (val > 0 && val < 1) return { v: (val * 1000).toFixed(0), u: "mW" };
+        return { v: val.toFixed(1), u: "W" };
     };
 
     const formatEnergy = (val?: number) => {
         if (val === undefined || val === null) return { v: val, u: "Wh" };
-        if (val > 0 && val < 0.001) return { v: val * 1000000, u: "mWh" };
-        if (val >= 0.001 && val < 1) return { v: val * 1000, u: "Wh" };
-        return { v: val, u: "Wh" };
+        if (val > 0 && val < 0.001) return { v: (val * 1000000).toFixed(0), u: "mWh" };
+        if (val >= 0.001 && val < 1) return { v: (val * 1000).toFixed(1), u: "Wh" };
+        return { v: val.toFixed(2), u: "kWh" };
     };
 
     const currentFmt = formatCurrent(realTimeData?.pzem?.current);
@@ -309,7 +306,7 @@ export default function Tips() {
                         <View className="items-end">
                             <View className="flex-row items-baseline">
                                 <Text className="text-white text-3xl font-black italic tracking-tighter">
-                                    {tipsData?.forecast?.tomorrow ? Number(tipsData.forecast.tomorrow).toFixed(2) : '5.02'}
+                                    {tipsData?.forecast?.tomorrow ? Number(tipsData.forecast.tomorrow).toFixed(2) : '0.00'}
                                 </Text>
                                 <Text className="text-indigo-200 text-sm font-bold ml-1">kWh</Text>
                             </View>
@@ -358,7 +355,16 @@ export default function Tips() {
     );
 }
 
-const StatCard = ({ icon, iconColor, label, value, unit }: { icon: string, iconColor: string, label: string, value?: number | null, unit: string }) => {
+const StatCard = ({ icon, iconColor, label, value, unit }: { icon: string, iconColor: string, label: string, value?: number | string | null, unit: string }) => {
+    const displayValue = (val: any) => {
+        if (val === undefined || val === null) return '--';
+        if (typeof val === 'string') return val;
+        if (typeof val === 'number') {
+            return Number.isInteger(val) ? val.toString() : val.toFixed(2);
+        }
+        return String(val);
+    };
+
     return (
         <View className="bg-slate-800/80 p-4 rounded-3xl mb-4 shadow-lg border border-white/5 backdrop-blur-sm flex-col justify-center" style={{ width: '48%' }}>
             <View className="flex-row items-center justify-between mb-3">
@@ -369,7 +375,7 @@ const StatCard = ({ icon, iconColor, label, value, unit }: { icon: string, iconC
             </View>
             <View className="flex-row items-baseline align-bottom">
                  <Text className="text-3xl font-black text-white tracking-tight mr-1">
-                     {value !== undefined && value !== null ? (Number.isInteger(value) ? value : value.toFixed(2)) : '--'}
+                     {displayValue(value)}
                  </Text>
                  {unit && <Text className="text-sm font-bold text-slate-400 mb-1">{unit}</Text>}
             </View>

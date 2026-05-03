@@ -23,6 +23,7 @@ class AnomalyService:
         # Cache the last anomaly context per device for feedback linking
         # Stores: { device_id: { features, rl_action, iforest_score, dqn_confidence, combined_score, predicted_severity } }
         self.last_anomaly_context = {}
+        self.last_notification_time = {}
 
         # MongoDB collections
         self.use_db = is_db_connected()
@@ -155,17 +156,25 @@ class AnomalyService:
                 result = self.anomalies.insert_one(anomaly)
                 anomaly_id = str(result.inserted_id)
 
-                # Create notification
-                title = f"{severity} Alert"
-                message = self._get_alert_message(severity, payload, score_result)
-                notification = Notification.create(
-                    device_id,
-                    severity,
-                    title,
-                    message,
-                    action_taken
-                )
-                self.notifications.insert_one(notification)
+                # Create notification with throttling (don't spam same severity within 5 mins)
+                now = datetime.now(timezone.utc)
+                throttle_key = f"{device_id}_{severity}"
+                last_time = self.last_notification_time.get(throttle_key)
+                
+                if last_time is None or (now - last_time) > timedelta(minutes=5):
+                    title = f"{severity} Alert"
+                    message = self._get_alert_message(severity, payload, score_result)
+                    notification = Notification.create(
+                        device_id,
+                        severity,
+                        title,
+                        message,
+                        action_taken
+                    )
+                    self.notifications.insert_one(notification)
+                    self.last_notification_time[throttle_key] = now
+                else:
+                    print(f"DEBUG: Throttling {severity} notification for {device_id}")
             except Exception as e:
                 print(f"[WARN] DB Error (Anomaly Write): {e}")
 
@@ -534,6 +543,33 @@ class AnomalyService:
             {"$set": {"read": True}}
         )
         return result.modified_count > 0
+
+    def delete_notification(self, notification_id):
+        """Permanently delete a notification from database."""
+        if not self.use_db:
+            print("DEBUG: Cannot delete notification - No DB connection")
+            return False
+        try:
+            from bson import ObjectId
+            result = self.notifications.delete_one({"_id": ObjectId(notification_id)})
+            print(f"DEBUG: MongoDB delete_one result: {result.deleted_count}")
+            return result.deleted_count > 0
+        except Exception as e:
+            print(f"DEBUG: MongoDB delete error: {e}")
+            return False
+
+    def clear_notifications(self, device_id):
+        """Clear all notifications for a specific device."""
+        if not self.use_db:
+            print("DEBUG: Cannot clear notifications - No DB connection")
+            return False
+        try:
+            result = self.notifications.delete_many({"device_id": device_id})
+            print(f"DEBUG: MongoDB delete_many result: {result.deleted_count}")
+            return result.deleted_count > 0
+        except Exception as e:
+            print(f"DEBUG: MongoDB clear error: {e}")
+            return False
 
     def get_anomaly_history(self, device_id, days=7):
         """Get anomaly history for reports."""

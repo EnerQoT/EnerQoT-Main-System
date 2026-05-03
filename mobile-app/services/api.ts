@@ -79,6 +79,26 @@ export const markNotificationRead = async (notificationId: string) => {
     }
 };
 
+export const deleteNotification = async (notificationId: string) => {
+    try {
+        const response = await api.delete(`/notifications/${notificationId}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error deleting notification:", error);
+        return null;
+    }
+};
+
+export const clearNotifications = async (deviceId: string) => {
+    try {
+        const response = await api.delete(`/notifications/device/${deviceId}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error clearing notifications:", error);
+        return null;
+    }
+};
+
 export const getAnomalies = async (deviceId: string, days: number = 7) => {
     try {
         const response = await api.get(`/anomalies/${deviceId}?days=${days}`);
@@ -176,6 +196,21 @@ export const postTelemetry = async (device: string, usage: number): Promise<Tele
         return response.data;
     } catch (error: any) {
         console.error('Error posting telemetry data:', error.message || error);
+        return null;
+    }
+};
+
+export const sendNotificationFeedback = async (notificationId: string, deviceId: string, feedbackType: string, correctSeverity?: string) => {
+    try {
+        const response = await api.post('/feedback/notification', {
+            notification_id: notificationId,
+            device_id: deviceId,
+            feedback_type: feedbackType,
+            correct_severity: correctSeverity
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Notification Feedback Error:", error);
         return null;
     }
 };
