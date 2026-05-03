@@ -9,12 +9,11 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - FLASK_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/enerqot
-    volumes:
-      - ./backend:/app
+      - FLASK_ENV=production
+      - MONGODB_URI=mongodb://mongo:27017/enerqot
+      - MONGODB_DATABASE=enerqot
     depends_on:
-      - db
+      - mongo
     networks:
       - enerqot-network
 
@@ -27,30 +26,21 @@ services:
       - "3000:3000"
     environment:
       - REACT_APP_API_URL=http://localhost:5000/api
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    depends_on:
-      - backend
     networks:
       - enerqot-network
 
-  db:
-    image: postgres:15-alpine
-    container_name: enerqot-db
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=enerqot
+  mongo:
+    image: mongo:6.0
+    container_name: enerqot-mongo
     ports:
-      - "5432:5432"
+      - "27017:27017"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mongo_data:/data/db
     networks:
       - enerqot-network
 
 volumes:
-  postgres_data:
+  mongo_data:
 
 networks:
   enerqot-network:

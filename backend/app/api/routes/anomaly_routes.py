@@ -215,6 +215,24 @@ def mark_notification_read(notification_id):
     return jsonify({"success": success})
 
 
+@anomaly_bp.route("/notifications/<notification_id>", methods=["DELETE"])
+def delete_notification(notification_id):
+    """Delete a single notification."""
+    print(f"DEBUG: Attempting to delete notification {notification_id}")
+    success = service.delete_notification(notification_id)
+    print(f"DEBUG: Delete success: {success}")
+    return jsonify({"success": success})
+
+
+@anomaly_bp.route("/notifications/device/<device_id>", methods=["DELETE"])
+def clear_notifications(device_id):
+    """Clear all notifications for a device."""
+    print(f"DEBUG: Attempting to clear all notifications for device {device_id}")
+    success = service.clear_notifications(device_id)
+    print(f"DEBUG: Clear success: {success}")
+    return jsonify({"success": success})
+
+
 @anomaly_bp.route("/anomalies/<device_id>", methods=["GET"])
 def get_anomalies(device_id):
     """Get anomaly history for reports."""

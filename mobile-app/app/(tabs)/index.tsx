@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ImageBackground, Modal, Alert, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getLatestStatus, sendFeedback } from '../../services/api';
+import { getLatestStatus, sendFeedback, getNotifications } from '../../services/api';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import { usePower } from '../contexts/PowerContext';
@@ -12,6 +12,7 @@ export default function Home() {
     const [showMenu, setShowMenu] = useState(false);
     const [shutdownCountdown, setShutdownCountdown] = useState<number | null>(null);
     const [deviceOffline, setDeviceOffline] = useState(false);
+    const [notifications, setNotifications] = useState<any[]>([]);
     const router = useRouter();
     const { isPowerOn, setIsPowerOn, lastKnownTimestamp, setLastKnownTimestamp, isAutoShutdownEnabled, setIsAutoShutdownEnabled, turnOffPower } = usePower();
 
@@ -80,6 +81,14 @@ export default function Home() {
             }
         } catch (e) {
             console.log("Error fetching data", e);
+        }
+        try {
+            const result = await getNotifications('test_device_01', 'all', 2);
+            if (result && result.notifications) {
+                setNotifications(result.notifications);
+            }
+        } catch (e) {
+            console.log("Error fetching notifications preview", e);
         }
     };
 
@@ -290,16 +299,18 @@ export default function Home() {
                                 <Text className="text-blue-400 font-semibold text-sm">View All</Text>
                             </TouchableOpacity>
                         </View>
-                        <NotificationItem
-                            severity="WARNING"
-                            message="High temperature detected"
-                            time="2 min ago"
-                        />
-                        <NotificationItem
-                            severity="NORMAL"
-                            message="System stabilized"
-                            time="15 min ago"
-                        />
+                        {notifications.length === 0 ? (
+                            <Text className="text-slate-500 text-xs italic py-4">No recent alerts</Text>
+                        ) : (
+                            notifications.map((notif, idx) => (
+                                <NotificationItem
+                                    key={notif._id || idx}
+                                    severity={notif.severity}
+                                    message={notif.title}
+                                    time={notif.time || "Recently"}
+                                />
+                            ))
+                        )}
                     </View>
                 </ScrollView>
             </ImageBackground>
