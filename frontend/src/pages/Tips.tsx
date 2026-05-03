@@ -1,11 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
-import { getAllTipsData, fetchLatestPzemData, postTelemetry, type TipsData, type PzemData, type TelemetryResponse } from '../services/tipsApi';
-import { TrendingDown, TrendingUp, Zap, Target, Activity, PlusCircle, Scale } from 'lucide-react';
+import { getAllTipsData, fetchLatestSensorData, postTelemetry, type TipsData, type RealTimeSensorData, type TelemetryResponse } from '../services/tipsApi';
+import { TrendingDown, TrendingUp, Zap, Target, Activity, PlusCircle, Scale, Thermometer, Droplets, Wifi, Battery } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Tips() {
     const [data, setData] = useState<TipsData | null>(null);
-    const [pzemData, setPzemData] = useState<PzemData | null>(null);
+    const [realTimeData, setRealTimeData] = useState<RealTimeSensorData | null>(null);
     const [cumulativeEnergy, setCumulativeEnergy] = useState<number | null>(null);
     const [telemetry, setTelemetry] = useState<TelemetryResponse | null>(null);
     const [loading, setLoading] = useState(true);
@@ -28,15 +28,18 @@ export default function Tips() {
     useEffect(() => {
         // Fetch recommendations and standard tip data
         getAllTipsData().then((res) => {
-            if (res && res.recommendations && res.recommendations.length > 0 && Object.keys(res.top_devices).length > 0) {
-                setData(res);
-            } else {
-                 // Fallback Mock Data as originally built
+            if (res) {
+                const useFallback = !res.recommendations || res.recommendations.length === 0 || Object.keys(res.top_devices || {}).length === 0;
+                
                 setData({
-                    forecast: { "2026-03-06": 120.5, "2026-03-07": 5.02 },
-                    top_devices: { 
-                        "Real-Time IoT Data": 45.2, 
-                    },
+                    forecast: res.forecast || { today: 0, tomorrow: 0 },
+                    top_devices: useFallback ? { "Real-Time IoT Data": 45.2 } : res.top_devices,
+                    recommendations: useFallback ? [] : res.recommendations
+                });
+            } else {
+                setData({
+                    forecast: { today: 0, tomorrow: 0 },
+                    top_devices: { "Real-Time IoT Data": 45.2 },
                     recommendations: []
                 });
             }
@@ -50,11 +53,13 @@ export default function Tips() {
 
         // Setup real-time polling from Firebase RTDB
         const fetchRealTime = () => {
-             fetchLatestPzemData().then((res) => {
+             fetchLatestSensorData().then((res) => {
                  if(res) {
-                     setPzemData(res);
+                     setRealTimeData(res);
                      // Use the device's native energy measurement directly (converted from Wh to kWh)
-                     setCumulativeEnergy(res.energy);
+                     if (res.pzem) {
+                         setCumulativeEnergy(res.pzem.energy);
+                     }
                  }
              });
         };
@@ -125,6 +130,29 @@ export default function Tips() {
     const usageDifference = meanDailyUsage - selectedUsage;
     const isSaved = usageDifference >= 0;
 
+    const formatCurrent = (val?: number) => {
+        if (val === undefined || val === null) return { v: val, u: "A" };
+        if (val > 0 && val < 1) return { v: val * 1000, u: "mA" };
+        return { v: val, u: "A" };
+    };
+
+    const formatPower = (val?: number) => {
+        if (val === undefined || val === null) return { v: val, u: "W" };
+        if (val > 0 && val < 1) return { v: val * 1000, u: "W" };
+        return { v: val, u: "W" };
+    };
+
+    const formatEnergy = (val?: number) => {
+        if (val === undefined || val === null) return { v: val, u: "Wh" };
+        if (val > 0 && val < 0.001) return { v: val * 1000000, u: "mWh" };
+        if (val >= 0.001 && val < 1) return { v: val * 1000, u: "Wh" };
+        return { v: val, u: "Wh" };
+    };
+
+    const currentFmt = formatCurrent(realTimeData?.pzem?.current);
+    const powerFmt = formatPower(realTimeData?.pzem?.power);
+    const energyFmt = formatEnergy(realTimeData?.pzem?.energy);
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* Header Section */}
@@ -149,8 +177,8 @@ export default function Tips() {
 
             <div className="grid grid-cols-2 gap-6">
                 {/* Left Column: Live Firebase Realtime Stats */}
-                <div className="space-y-6">
-                    <h3 className="text-xl font-semibold text-gray-800 flex items-center justify-between">
+                <div className="flex flex-col space-y-6 h-full">
+                    <h3 className="text-xl font-semibold text-gray-800 flex items-center justify-between min-h-[32px]">
                          <div className="flex items-center">
                              <Activity className="w-5 h-5 mr-2 text-blue-600" />
                              Real-Time Core Parameters Formatted
@@ -161,15 +189,19 @@ export default function Tips() {
                          </div>
                     </h3>
                     
-                    {pzemData ? (
-                         <div className="grid grid-cols-2 gap-4">
-                              <StatCard icon={<Zap className="w-5 h-5 text-yellow-500" />} label="Voltage" value={pzemData.voltage} unit="V" />
-                              <StatCard icon={<TrendingDown className="w-5 h-5 text-indigo-500" />} label="Current" value={pzemData.current} unit="A" />
-                              <StatCard icon={<Activity className="w-5 h-5 text-emerald-500" />} label="Power" value={pzemData.power} unit="kW" />
-                              <StatCard icon={<PlusCircle className="w-5 h-5 text-blue-500" />} label="Energy" value={cumulativeEnergy} unit="kWh" />
+                    {realTimeData ? (
+                         <div className="grid grid-cols-2 gap-4 flex-1">
+                              <StatCard icon={<Zap className="w-5 h-5 text-yellow-500" />} label="Main Voltage" value={realTimeData.pzem?.voltage} unit="V" />
+                              <StatCard icon={<TrendingDown className="w-5 h-5 text-indigo-500" />} label="Main Current" value={currentFmt.v} unit={currentFmt.u} />
+                              <StatCard icon={<Activity className="w-5 h-5 text-emerald-500" />} label="Power" value={powerFmt.v} unit={powerFmt.u} />
+                              <StatCard icon={<PlusCircle className="w-5 h-5 text-blue-500" />} label="Energy" value={energyFmt.v} unit={energyFmt.u} />
+                              <StatCard icon={<Thermometer className="w-5 h-5 text-red-500" />} label="Temp" value={realTimeData.si7021?.temperature} unit="°C" />
+                              <StatCard icon={<Droplets className="w-5 h-5 text-cyan-500" />} label="Humidity" value={realTimeData.si7021?.humidity} unit="%" />
+                              <StatCard icon={<Battery className="w-5 h-5 text-green-500" />} label="Battery V" value={realTimeData.ina3221?.battery?.voltage} unit="V" />
+                              <StatCard icon={<Wifi className="w-5 h-5 text-purple-500" />} label="Signal" value={realTimeData.system?.rssi} unit="dBm" />
                          </div>
                     ) : (
-                         <div className="bg-gray-50 border border-gray-200 rounded-2xl h-[280px] flex flex-col items-center justify-center space-y-4">
+                         <div className="bg-gray-50 border border-gray-200 rounded-2xl flex-1 flex flex-col items-center justify-center space-y-4">
                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                                <p className="text-gray-500 text-sm">Waiting for live sensor data stream...</p>
                          </div>
@@ -177,13 +209,13 @@ export default function Tips() {
                 </div>
                 
                 {/* Right Column: Historical Mean Usage Comparison */}
-                <div className="space-y-0">
-                    <h3 className="text-xl font-semibold text-gray-800 flex items-center">
+                <div className="flex flex-col space-y-6 h-full">
+                    <h3 className="text-xl font-semibold text-gray-800 flex items-center min-h-[32px]">
                         <Scale className="w-5 h-5 mr-2 text-orange-500" />
                         Daily Usage Comparison
                     </h3>
                     
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-full flex flex-col items-center justify-center p-8 relative">                         
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex-1 flex flex-col items-center justify-center p-8 relative">                         
                          <div className="w-full flex justify-between items-center mb-10 z-10 space-x-8">
                              <div className="text-center flex-1">
                                  <p className="text-xs uppercase font-bold text-gray-400 mb-2 tracking-wider">Historical Mean</p>

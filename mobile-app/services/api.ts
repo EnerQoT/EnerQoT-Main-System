@@ -6,7 +6,7 @@ import { Platform } from 'react-native';
 // - Android emulator: use 10.0.2.2
 // - iOS simulator / web: use localhost
 // When testing on physical device with Expo Go, LAN IP is required.
-const BASE_URL = 'http://192.168.1.92:5000';
+const BASE_URL = 'http://192.168.1.123:5000';
 
 const api = axios.create({
     baseURL: BASE_URL,
@@ -120,6 +120,34 @@ export interface PzemData {
   voltage: number;
 }
 
+export interface RealTimeSensorData {
+  ina3221?: {
+    battery?: { current_ma: number; voltage: number };
+    esp?: { current_ma: number; voltage: number };
+    main?: { current_ma: number; voltage: number };
+  };
+  pzem?: {
+    current: number;
+    energy: number;
+    frequency: number;
+    pf: number;
+    power: number;
+    voltage: number;
+  };
+  relay?: string;
+  si7021?: {
+    humidity: number;
+    temperature: number;
+  };
+  system?: {
+    cpu_temp: number;
+    free_heap: number;
+    reconnects: number;
+    rssi: number;
+  };
+  timestamp?: string;
+}
+
 export interface TelemetryResponse {
   status: string;
   analysis: {
@@ -161,6 +189,19 @@ export const fetchLatestPzemData = async (): Promise<PzemData | null> => {
         return null;
     } catch (error) {
         console.error('Error fetching from Firebase:', error);
+        return null;
+    }
+};
+
+export const fetchLatestSensorData = async (): Promise<RealTimeSensorData | null> => {
+    try {
+        const response = await api.get('/api/tips/realtime');
+        if (response.data) {
+            return response.data as RealTimeSensorData;
+        }
+        return null;
+    } catch (error) {
+        console.error('Error fetching full sensor data from backend:', error);
         return null;
     }
 };

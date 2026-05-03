@@ -44,7 +44,7 @@ class FirebaseService:
         Using orderByKey().limitToLast(1) for efficiency.
         """
         try:
-            ref = db.reference('/') # Root reference, assuming data is at root or adjust path
+            ref = db.reference('/sensor_data') # Assuming data is stored under sensor_data
             # Query for the last 1 item ordered by key (Push IDs are chronological)
             snapshot = ref.order_by_key().limit_to_last(1).get()
             

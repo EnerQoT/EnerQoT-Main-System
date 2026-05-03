@@ -1,7 +1,6 @@
 import axios from 'axios';
 
 const TIPS_API_URL = 'http://localhost:5000/api/tips';
-const FIREBASE_DB_URL = 'https://rp-project-51690-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_readings.json?orderBy="$key"&limitToLast=1';
 
 export const tipsApi = axios.create({
     baseURL: TIPS_API_URL,
@@ -23,14 +22,33 @@ export interface TipsData {
     recommendations: Recommendation[];
 }
 
-// Data format specifically for fetching from the selected document
-export interface PzemData {
-  current: number;
-  energy: number;
-  frequency: number;
-  pf: number;
-  power: number;
-  voltage: number;
+// Data format specifically for fetching from the realtime endpoint
+export interface RealTimeSensorData {
+  ina3221?: {
+    battery?: { current_ma: number; voltage: number };
+    esp?: { current_ma: number; voltage: number };
+    main?: { current_ma: number; voltage: number };
+  };
+  pzem?: {
+    current: number;
+    energy: number;
+    frequency: number;
+    pf: number;
+    power: number;
+    voltage: number;
+  };
+  relay?: string;
+  si7021?: {
+    humidity: number;
+    temperature: number;
+  };
+  system?: {
+    cpu_temp: number;
+    free_heap: number;
+    reconnects: number;
+    rssi: number;
+  };
+  timestamp?: string;
 }
 
 // Data format for the /telemetry POST request
@@ -77,24 +95,15 @@ export const postTelemetry = async (device: string, usage: number): Promise<Tele
     }
 };
 
-export const fetchLatestPzemData = async (): Promise<PzemData | null> => {
+export const fetchLatestSensorData = async (): Promise<RealTimeSensorData | null> => {
     try {
-        const response = await axios.get(FIREBASE_DB_URL);
-        const data = response.data;
-        
-        if (data) {
-            // Data is an object where the key is the timestamp node
-            const keys = Object.keys(data);
-            if (keys.length > 0) {
-                const latestReading = data[keys[0]];
-                if (latestReading && latestReading.pzem) {
-                    return latestReading.pzem as PzemData;
-                }
-            }
+        const response = await tipsApi.get('/realtime');
+        if (response.data) {
+            return response.data as RealTimeSensorData;
         }
         return null;
     } catch (error) {
-        console.error('Error fetching from Firebase:', error);
+        console.error('Error fetching realtime data from backend:', error);
         return null;
     }
 };

@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 if "MONGODB_URI" not in os.environ:
     os.environ["MONGODB_URI"] = "mongodb+srv://u2000_db_user:llJrS8kIEROGAzvN@cluster0.2tqf5iq.mongodb.net/enerqot?retryWrites=true&w=majority"
     
-import logging
+import logging+
 from app.database import is_db_connected, store_daily_usage, store_tip
 
 logging.basicConfig(level=logging.INFO)

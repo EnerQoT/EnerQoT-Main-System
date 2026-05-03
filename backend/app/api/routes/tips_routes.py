@@ -61,6 +61,15 @@ def top_devices():
     service = get_service()
     return jsonify(service.get_top_devices())
 
+@api.route("/realtime", methods=["GET"])
+def realtime_data():
+    from app.services.firebase_service import firebase_service
+    raw_data = firebase_service.get_latest_sensor_data()
+    if not raw_data:
+        return jsonify({"error": "No data available in Firebase"}), 404
+    
+    return jsonify(raw_data), 200
+
 @api.route("/recommendations", methods=["GET"])
 def recommendations():
     service = get_service()

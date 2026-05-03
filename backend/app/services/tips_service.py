@@ -120,10 +120,57 @@ class TipsService:
         return result
 
     def get_forecast(self):
-        # Hardcoded for now based on user request since it is not fully implemented yet
+        if self.models.model is None:
+            return {"today": 0, "tomorrow": 0, "error": "Model missing"}
+
+        today = self._get_today()
+        # Future DF for prophet
+        future_dates = pd.date_range(start=today, periods=2, freq='D')
+        future = pd.DataFrame({'ds': future_dates})
+
+        # Get last known temp
+        if 'temperature' in self.df.columns and not self.df.empty:
+            last_temp = self.df.groupby('date')['temperature'].mean().iloc[-1]
+        else:
+            last_temp = 25.0 # default
+
+        # Scale
+        if self.models.scaler:
+            try:
+                future['temp'] = self.models.scaler.transform([[last_temp]])[0][0]
+            except:
+                 future['temp'] = 0 # Fallback
+        else:
+             future['temp'] = 0
+
+        # Predict
+        try:
+            forecast = self.models.model.predict(future)
+            # Divide by 10 to match today's values scale
+            tomorrow_pred = round(forecast.iloc[1]['yhat'] / 10, 2)
+            today_pred = round(forecast.iloc[0]['yhat'] / 10, 2)
+        except Exception as e:
+            print(f"Forecast Error: {e}")
+            tomorrow_pred = 0
+            today_pred = 0
+
+        # Get projected today if we have actual data, else fallback to model prediction for today
+        if not self.df.empty:
+            try:
+                from .config import PARTIAL_FACTOR
+                actual_today_sum = self.df[self.df['date'].dt.date == today]['power_usage'].sum()
+                projected_today = round(actual_today_sum / PARTIAL_FACTOR, 2)
+                # If projected today is zero because no data for today, use prediction
+                if projected_today == 0:
+                     projected_today = today_pred
+            except:
+                projected_today = today_pred
+        else:
+            projected_today = today_pred
+
         return {
-            "today": 45.2,
-            "tomorrow": 48.5
+            "today": projected_today,
+            "tomorrow": tomorrow_pred
         }
 
     def get_top_devices(self):
