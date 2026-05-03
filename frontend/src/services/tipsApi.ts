@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const TIPS_API_URL = 'http://159.223.49.246:5000/api/tips';
+const TIPS_API_URL = 'http://188.166.253.67:5000/api/tips';
 const FIREBASE_DB_URL = 'https://rp-project-51690-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_readings.json?orderBy="$key"&limitToLast=1';
 
 export const tipsApi = axios.create({
