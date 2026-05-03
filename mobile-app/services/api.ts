@@ -6,7 +6,7 @@ import { Platform } from 'react-native';
 // - Android emulator: use 10.0.2.2
 // - iOS simulator / web: use localhost
 // When testing on physical device with Expo Go, LAN IP is required.
-const BASE_URL = 'http://192.168.1.58:5000';
+const BASE_URL = 'http://159.223.49.246:5000';
 
 const api = axios.create({
     baseURL: BASE_URL,
