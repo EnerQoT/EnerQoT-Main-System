@@ -22,5 +22,5 @@ COPY . .
 # Expose port
 EXPOSE 5000
 
-# Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "run:app"]
+# Run the application with 1 worker, 4 threads, and increased timeout for ML models
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "4", "--timeout", "120", "run:app"]
