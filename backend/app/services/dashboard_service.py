@@ -31,7 +31,7 @@ class DashboardService:
 
         # 3. Get Health Score from AI Model
         # The sensor_health_service expects the full raw structure to map fields correctly
-        health_score, health_error = sensor_health_service.get_ai_score(raw_data)
+        health_score, is_anomaly, health_error = sensor_health_service.get_ai_score(raw_data)
         
         if health_error:
              # Decide if we want to fail the whole dashboard or just show "N/A" for health
