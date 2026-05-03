@@ -1,6 +1,10 @@
 
+from datetime import datetime, timezone
 from app.services.firebase_service import firebase_service
 from app.services.sensor_health_service import sensor_health_service
+
+# How many seconds of silence before we consider the device offline
+OFFLINE_THRESHOLD_SECONDS = 30
 
 class DashboardService:
     def get_dashboard_data(self):
@@ -29,7 +33,29 @@ class DashboardService:
         except Exception as e:
             return {"error": f"Error parsing data fields: {str(e)}"}, 500
 
-        # 3. Get Health Score from AI Model
+        # 3. Determine device online/offline status from timestamp
+        device_online = True
+        data_age_seconds = None
+        raw_ts = raw_data.get('timestamp')
+        if raw_ts:
+            try:
+                # Support both ISO-format strings and epoch numbers
+                if isinstance(raw_ts, (int, float)):
+                    data_time = datetime.fromtimestamp(raw_ts, tz=timezone.utc)
+                else:
+                    # Try parsing ISO format (e.g. "2026-05-03T16:30:00Z")
+                    ts_str = str(raw_ts).replace('Z', '+00:00')
+                    data_time = datetime.fromisoformat(ts_str)
+                    if data_time.tzinfo is None:
+                        data_time = data_time.replace(tzinfo=timezone.utc)
+
+                now = datetime.now(timezone.utc)
+                data_age_seconds = round((now - data_time).total_seconds(), 1)
+                device_online = data_age_seconds < OFFLINE_THRESHOLD_SECONDS
+            except Exception as e:
+                print(f"Warning: Could not parse timestamp '{raw_ts}': {e}")
+
+        # 4. Get Health Score from AI Model
         # The sensor_health_service expects the full raw structure to map fields correctly
         health_score, is_anomaly, health_error = sensor_health_service.get_ai_score(raw_data)
         
@@ -38,9 +64,6 @@ class DashboardService:
              # For now, let's include the error but return the data
              health_data = {"score": None, "status": "Unknown", "color": "gray", "error": health_error}
         else:
-             # Replicate the status logic or call a helper if it was shared.
-             # Since the logic is inside the route in the previous step, I should propbably refactor or duplicate it.
-             # Refactoring is better, but to keep it simple and encapsulated here:
              status = "Healthy"
              color = "green"
              
@@ -64,10 +87,12 @@ class DashboardService:
                  "color": color
              }
 
-        # 4. Construct Final Response
+        # 5. Construct Final Response
         return {
             "sensors": frontend_data,
-            "health": health_data
+            "health": health_data,
+            "device_online": device_online,
+            "data_age_seconds": data_age_seconds
         }, 200
 
 dashboard_service = DashboardService()
