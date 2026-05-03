@@ -36,10 +36,14 @@ jobs:
             mkdir -p backend/config
             
             # Create a .env file from GitHub Secrets
-            echo "${{ secrets.BACKEND_ENV }}" > backend/.env
+            cat << 'EOF' > backend/.env
+            ${{ secrets.BACKEND_ENV }}
+            EOF
             
             # Create Firebase credentials file from GitHub Secrets
-            echo "${{ secrets.FIREBASE_JSON }}" > backend/config/firebase_credentials.json
+            cat << 'EOF' > backend/config/firebase_credentials.json
+            ${{ secrets.FIREBASE_JSON }}
+            EOF
             
             # Rebuild and restart the Docker containers
             docker-compose down
