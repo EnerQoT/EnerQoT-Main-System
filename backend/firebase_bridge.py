@@ -21,7 +21,7 @@ if not firebase_admin._apps:
             'databaseURL': FIREBASE_DB_URL
         })
     except Exception as e:
-        print(f"❌ Failed to initialize Firebase: {e}")
+        print(f"[ERROR] Failed to initialize Firebase: {e}")
 DEVICE_ID = "test_device_01"
 POLL_INTERVAL_SECONDS = 2  # How often to check for new data
 
@@ -94,23 +94,23 @@ def fetch_and_forward():
             )
             
             if api_response.status_code in [200, 201]:
-                print(f"  ✅ Successfully forwarded to backend API: {voltage}V, {current}A, {temperature}°C")
+                print(f"  [OK] Successfully forwarded to backend API: {voltage}V, {current}A, {temperature}degC")
             else:
-                print(f"  ❌ Backend API rejected data: HTTP {api_response.status_code} - {api_response.text}")
+                print(f"  [ERROR] Backend API rejected data: HTTP {api_response.status_code} - {api_response.text}")
 
         except requests.ConnectionError:
-            print(f"  ❌ Backend API unreachable at {LOCAL_API_URL}. Is the local server running?")
+            print(f"  [ERROR] Backend API unreachable at {LOCAL_API_URL}. Is the local server running?")
         except requests.Timeout:
-            print(f"  ❌ Backend API connection timed out.")
+            print(f"  [ERROR] Backend API connection timed out.")
         except Exception as e:
-            print(f"  ⚠️ Error processing/sending data: {e}")
+            print(f"  [WARN] Error processing/sending data: {e}")
 
     except Exception as e:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Network Error: {e}")
 
 if __name__ == "__main__":
     print("-" * 60)
-    print("🔥 EnerQoT Firebase -> Local API Bridge Started 🔥")
+    print("EnerQoT Firebase -> Local API Bridge Started")
     print(f"Polling Firebase every {POLL_INTERVAL_SECONDS} seconds...")
     print(f"Target Local API: {LOCAL_API_URL}")
     print("-" * 60)
