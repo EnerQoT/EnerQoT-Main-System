@@ -50,18 +50,19 @@ export default function Tips() {
             setLoading(false);
         });
 
-        // Setup real-time polling from Firebase RTDB
+        // Setup real-time polling
         const fetchRealTime = () => {
              fetchLatestSensorData().then((res) => {
                  if(res) {
                      setRealTimeData(res);
                      // Use the device's native energy measurement directly (converted from Wh to kWh)
-                     if (res.pzem) {
-                         setCumulativeEnergy(res.pzem.energy);
+                     const energyValue = res.pzem?.energy ?? (res as any)?.energy;
+                     if (energyValue !== undefined) {
+                         setCumulativeEnergy(energyValue);
                      }
                  }
              });
-        };
+         };
         
         // Fetch immediately, then setup interval every 2.5 seconds
         fetchRealTime();
@@ -137,9 +138,19 @@ export default function Tips() {
         return { v: val, u: "Wh" };
     };
 
-    const currentFmt = formatCurrent(realTimeData?.pzem?.current);
-    const powerFmt = formatPower(realTimeData?.pzem?.power);
-    const energyFmt = formatEnergy(realTimeData?.pzem?.energy);
+    // Robust property extraction with fallbacks
+    const voltageValue = realTimeData?.pzem?.voltage ?? (realTimeData as any)?.voltage;
+    const currentRaw = realTimeData?.pzem?.current ?? (realTimeData as any)?.current;
+    const powerRaw = realTimeData?.pzem?.power ?? (realTimeData as any)?.power;
+    const energyRaw = realTimeData?.pzem?.energy ?? (realTimeData as any)?.energy;
+    const tempValue = realTimeData?.si7021?.temperature ?? (realTimeData as any)?.temperature;
+    const humValue = realTimeData?.si7021?.humidity ?? (realTimeData as any)?.humidity;
+    const batValue = realTimeData?.ina3221?.battery?.voltage ?? (realTimeData as any)?.ina3221?.voltage;
+    const rssiValue = realTimeData?.system?.rssi ?? (realTimeData as any)?.rssi;
+
+    const currentFmt = formatCurrent(currentRaw);
+    const powerFmt = formatPower(powerRaw);
+    const energyFmt = formatEnergy(energyRaw);
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -149,7 +160,7 @@ export default function Tips() {
                     <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Active Real-Time Insights & Tips</h1>
                     <p className="text-gray-500 mt-2 flex items-center">
                         <Target className="w-4 h-4 mr-1 text-indigo-500" />
-                        Targeted analysis and real-time active data monitoring directly from Firebase.
+                        Targeted analysis and real-time active data monitoring directly from the Backend.
                     </p>
                 </div>
                 <div className="bg-white border border-indigo-100 shadow-sm px-6 py-3 rounded-xl flex items-center space-x-3">
@@ -164,7 +175,7 @@ export default function Tips() {
             </div>
 
             <div className="grid grid-cols-2 gap-6">
-                {/* Left Column: Live Firebase Realtime Stats */}
+                {/* Left Column: Live IoT Realtime Stats */}
                 <div className="flex flex-col space-y-6 h-full">
                     <h3 className="text-xl font-semibold text-gray-800 flex items-center justify-between min-h-[32px]">
                          <div className="flex items-center">
@@ -179,14 +190,14 @@ export default function Tips() {
                     
                     {realTimeData ? (
                          <div className="grid grid-cols-2 gap-4 flex-1">
-                              <StatCard icon={<Zap className="w-5 h-5 text-yellow-500" />} label="Main Voltage" value={realTimeData.pzem?.voltage} unit="V" />
+                              <StatCard icon={<Zap className="w-5 h-5 text-yellow-500" />} label="Main Voltage" value={voltageValue} unit="V" />
                               <StatCard icon={<TrendingDown className="w-5 h-5 text-indigo-500" />} label="Main Current" value={currentFmt.v} unit={currentFmt.u} />
                               <StatCard icon={<Activity className="w-5 h-5 text-emerald-500" />} label="Power" value={powerFmt.v} unit={powerFmt.u} />
                               <StatCard icon={<PlusCircle className="w-5 h-5 text-blue-500" />} label="Energy" value={energyFmt.v} unit={energyFmt.u} />
-                              <StatCard icon={<Thermometer className="w-5 h-5 text-red-500" />} label="Temp" value={realTimeData.si7021?.temperature} unit="°C" />
-                              <StatCard icon={<Droplets className="w-5 h-5 text-cyan-500" />} label="Humidity" value={realTimeData.si7021?.humidity} unit="%" />
-                              <StatCard icon={<Battery className="w-5 h-5 text-green-500" />} label="Battery V" value={realTimeData.ina3221?.battery?.voltage} unit="V" />
-                              <StatCard icon={<Wifi className="w-5 h-5 text-purple-500" />} label="Signal" value={realTimeData.system?.rssi} unit="dBm" />
+                              <StatCard icon={<Thermometer className="w-5 h-5 text-red-500" />} label="Temp" value={tempValue} unit="°C" />
+                              <StatCard icon={<Droplets className="w-5 h-5 text-cyan-500" />} label="Humidity" value={humValue} unit="%" />
+                              <StatCard icon={<Battery className="w-5 h-5 text-green-500" />} label="Battery V" value={batValue} unit="V" />
+                              <StatCard icon={<Wifi className="w-5 h-5 text-purple-500" />} label="Signal" value={rssiValue} unit="dBm" />
                          </div>
                     ) : (
                          <div className="bg-gray-50 border border-gray-200 rounded-2xl flex-1 flex flex-col items-center justify-center space-y-4">
